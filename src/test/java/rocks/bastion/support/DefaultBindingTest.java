@@ -15,7 +15,7 @@ public class DefaultBindingTest extends TestWithEmbeddedServer {
     public void testDefaultBinding() {
         Bastion.request("Create Sushi Request", new CreateSushiRequest())
                 .withAssertions((statusCode, response, model) -> {
-                    assertThat(statusCode).isEqualTo(202);
+                    assertThat(statusCode).isEqualTo(201);
                 }).call();
     }
 
