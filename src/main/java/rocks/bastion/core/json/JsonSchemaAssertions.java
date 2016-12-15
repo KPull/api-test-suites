@@ -8,7 +8,6 @@ import com.github.fge.jsonschema.core.exceptions.ProcessingException;
 import com.github.fge.jsonschema.core.report.ProcessingMessage;
 import com.github.fge.jsonschema.core.report.ProcessingReport;
 import com.github.fge.jsonschema.main.JsonSchemaFactory;
-import org.junit.Assert;
 import rocks.bastion.core.Assertions;
 import rocks.bastion.core.ModelResponse;
 import rocks.bastion.core.resource.ResourceLoader;
@@ -68,7 +67,7 @@ public final class JsonSchemaAssertions implements Assertions<Object> {
             String messages = StreamSupport.stream(validationReport.spliterator(), false)
                     .map(ProcessingMessage::getMessage)
                     .collect(Collectors.joining(", "));
-            Assert.fail(String.format("Actual response body is not as specified. The following message(s) where produced during validation; %s.", messages));
+            throw new AssertionError(String.format("Actual response body is not as specified. The following message(s) where produced during validation; %s.", messages));
         }
     }
 

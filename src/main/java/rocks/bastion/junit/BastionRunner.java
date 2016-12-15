@@ -1,6 +1,5 @@
 package rocks.bastion.junit;
 
-import com.google.common.io.CharStreams;
 import org.junit.runner.Description;
 import org.junit.runner.notification.Failure;
 import org.junit.runner.notification.RunNotifier;
@@ -10,14 +9,16 @@ import org.junit.runners.model.InitializationError;
 import rocks.bastion.core.BastionBuilderImpl;
 import rocks.bastion.core.BastionFactory;
 import rocks.bastion.core.DefaultBastionFactory;
-import rocks.bastion.core.Response;
 import rocks.bastion.core.event.*;
 
-import java.io.IOException;
-import java.io.InputStreamReader;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * The Bastion Runner is a JUnit 4 Test Runner which can be used with tests containing Bastion calls. The Bastion runner will show additional
+ * diagnostic information in your test reports which is especially useful when tests fail. To use the {@code BastionRunner} you need to have
+ * JUnit 4 in your classpath: if you're using Maven, make sure JUnit 4 is one of your dependencies.
+ */
 public class BastionRunner extends BlockJUnit4ClassRunner implements BastionListener {
 
     private Map<FrameworkMethod, Description> methodDescriptions = new ConcurrentHashMap<>();
