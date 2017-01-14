@@ -117,7 +117,7 @@ public class FileRequestTest extends TestWithEmbeddedServer {
     @Test
     public void contentType_jsonFileType_contentTypeShouldBeJson() throws Exception {
         // See https://github.com/bastion-dev/Bastion/issues/63 and https://github.com/bastion-dev/Bastion/issues/77
-        assumeTrue("Underlying OS is Linux", SystemUtils.IS_OS_LINUX);
+        assumeTrue("Underlying OS is Linux or Windows", SystemUtils.IS_OS_LINUX || SystemUtils.IS_OS_WINDOWS);
         FileRequest request = FileRequest.post("http://localhost:9876/sushi", "classpath:/json/create_sushi_request.json");
         assertThat(request.contentType().get().getMimeType()).describedAs("Request content-type").isEqualTo("application/json");
     }
