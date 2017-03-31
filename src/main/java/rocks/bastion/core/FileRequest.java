@@ -271,7 +271,8 @@ public class FileRequest implements HttpRequest {
 
     private void guessResourceMimeType(String resource) {
         try {
-            String mimeType = Files.probeContentType(Paths.get(resource));
+            String fileNameOnly = getFileNameOnly(resource);
+            String mimeType = Files.probeContentType(Paths.get(fileNameOnly));
             if (mimeType != null) {
                 generalRequest.setContentType(ContentType.create(mimeType));
             } else {
@@ -280,5 +281,11 @@ public class FileRequest implements HttpRequest {
         } catch (IOException e) {
             LOG.warning(format("Could not determine %s MIME type. Creating request with text/plain MIME type. Use setContentType() to change MIME type.", resource));
         }
+    }
+
+    private String getFileNameOnly(String resource) {
+        int lastPathSeperatorCharIndex = Math.max(resource.lastIndexOf(":"), resource.lastIndexOf("/"));
+        // If the index is -1 (because there aren't any colons or slashes), the substring will start from index 0
+        return resource.substring(lastPathSeperatorCharIndex + 1);
     }
 }
