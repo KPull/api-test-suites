@@ -1,13 +1,21 @@
 package rocks.bastion.core.json;
 
-import com.google.gson.JsonParser;
-import com.google.gson.JsonSyntaxException;
+import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.http.entity.ContentType;
-import rocks.bastion.core.*;
+import rocks.bastion.core.ApiHeader;
+import rocks.bastion.core.ApiQueryParam;
+import rocks.bastion.core.CommonRequestAttributes;
+import rocks.bastion.core.HttpMethod;
+import rocks.bastion.core.HttpRequest;
+import rocks.bastion.core.RouteParam;
+import rocks.bastion.core.TemplateCompilationException;
+import rocks.bastion.core.TemplateContentCompiler;
 import rocks.bastion.core.resource.ResourceLoader;
 import rocks.bastion.core.resource.ResourceNotFoundException;
 import rocks.bastion.core.resource.UnreadableResourceException;
 
+import java.io.IOException;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Objects;
@@ -683,9 +691,11 @@ public class JsonRequest implements HttpRequest {
     private void validateJson() throws InvalidJsonException {
         String jsonBody = requestAttributes.body().toString();
         try {
-            new JsonParser().parse(jsonBody);
-        } catch (JsonSyntaxException parseException) {
+            new ObjectMapper().getFactory().createParser(jsonBody).readValueAsTree();
+        } catch (JsonParseException parseException) {
             throw new InvalidJsonException(parseException, jsonBody);
+        } catch (IOException ioException) {
+            throw new RuntimeException("Unexpected error occurred parsing JSON", ioException);
         }
     }
 }

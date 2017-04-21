@@ -1,19 +1,27 @@
 package rocks.bastion.core.json;
 
 import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.flipkart.zjsonpatch.JsonDiff;
-import com.google.gson.JsonParseException;
-import com.google.gson.JsonParser;
 import org.apache.http.entity.ContentType;
-import rocks.bastion.core.*;
+import rocks.bastion.core.Assertions;
+import rocks.bastion.core.ModelResponse;
+import rocks.bastion.core.Response;
+import rocks.bastion.core.TemplateCompilationException;
+import rocks.bastion.core.TemplateContentCompiler;
 import rocks.bastion.core.resource.ResourceLoader;
 import rocks.bastion.core.resource.ResourceNotFoundException;
 import rocks.bastion.core.resource.UnreadableResourceException;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Objects;
 
 import static java.lang.String.format;
 
@@ -247,9 +255,11 @@ public class JsonResponseAssertions implements Assertions<Object> {
 
     private void validateExpectedJson() throws InvalidJsonException {
         try {
-            new JsonParser().parse(expectedJson);
+            new ObjectMapper().getFactory().createParser(expectedJson).readValueAsTree();
         } catch (JsonParseException parseException) {
             throw new InvalidJsonException(parseException, expectedJson);
+        } catch (IOException ioException) {
+            throw new RuntimeException("Unexpected error occurred parsing JSON", ioException);
         }
     }
 
