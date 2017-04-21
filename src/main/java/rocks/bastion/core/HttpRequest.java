@@ -11,6 +11,11 @@ import java.util.Optional;
 public interface HttpRequest {
 
     /**
+     * Constant to be returned by {@link #timeout()} if the globally configured timeout should be used when performing this request.
+     */
+    long USE_GLOBAL_TIMEOUT = -1;
+
+    /**
      * Returns a descriptive name for the contents of this request object.
      *
      * @return Description of this request
@@ -95,10 +100,12 @@ public interface HttpRequest {
      * Tests exceeding these timeouts will throw an {@link AssertionError} and be marked as failed.
      * A value of {@literal 0} indicates no timeout - the test will wait indefinitely for a response.
      *
+     * By default, this returns the {@link HttpRequest#USE_GLOBAL_TIMEOUT} constant, which indicates that the globally configured timeout should be used.
+     *
      * @return a number (in milliseconds) representing the longest a test should wait for each phase of a request
      */
     default long timeout() {
-        return 0;
+        return USE_GLOBAL_TIMEOUT;
     }
 
 }

@@ -2,12 +2,9 @@ package rocks.bastion.core
 
 import org.junit.Ignore
 import org.junit.Test
-import org.junit.runner.RunWith
 import rocks.bastion.Bastion
 import rocks.bastion.core.json.JsonResponseAssertions
-import rocks.bastion.junit.BastionRunner
 
-@RunWith(BastionRunner.class)
 @Ignore
 class GoogleBooksApiTest {
 

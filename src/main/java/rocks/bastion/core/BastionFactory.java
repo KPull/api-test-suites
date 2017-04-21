@@ -5,9 +5,7 @@ import rocks.bastion.core.builder.BastionBuilder;
 import rocks.bastion.core.configuration.BastionConfigurationLoader;
 import rocks.bastion.core.configuration.Configuration;
 
-import java.util.Objects;
-
-import static java.util.Objects.*;
+import static java.util.Objects.requireNonNull;
 
 /**
  * Creates and configures an instance of the {@link BastionBuilderImpl} fluent builder. A single factory can be designated as the
@@ -86,8 +84,8 @@ public abstract class BastionFactory {
 
     /**
      * Configures whether {@link BastionBuilderImpl} objects returned by this factory should be configured to suppress assertions or
-     * not. When set to suppress assertions, Bastion will execute the HTTP request as normal as well as any callbacks provided
-     * but will skip executing any assertions provided to the {@link BastionBuilderImpl#withAssertions(Assertions)} method.
+     * not. When set to suppress assertions, Bastion will execute the HTTP request as normal but will skip executing any assertions
+     * provided to the {@link BastionBuilderImpl#withAssertions(Assertions)} method.
      *
      * @param suppressAssertions {@literal true} to suppress assertions; {@literal false}, otherwise.
      */

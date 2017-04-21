@@ -2,6 +2,8 @@ package rocks.bastion.core.builder;
 
 import rocks.bastion.core.ModelResponse;
 
+import java.util.Optional;
+
 /**
  * Specifies the operations available on a Bastion fluent-builder after the test has been executed with {@link ExecuteRequestBuilder#call()} and
  * a response has been obtained. At this point, Bastion will have obtained a response and decoded the response body into
@@ -34,4 +36,14 @@ public interface PostExecutionBuilder<MODEL> {
      */
     ModelResponse<? extends MODEL> getResponse();
 
+    /**
+     * Gets a particular view of the response. A view is a Java object which represents the data received in the response. This allows
+     * users to get a different type of object other than the one provided in the {@link BindBuilder#bind(Class) bind()} method. Note that
+     * the model object returned by {@link #getModel()} would be one of the views of the response.
+     *
+     * @param viewType The class of the view object you want returned from the response
+     * @param <T> The type of view returned by this method
+     * @return An optional container with the view of the received response of the specified type, if any
+     */
+    <T> Optional<T> getView(Class<T> viewType);
 }

@@ -21,9 +21,9 @@ public class HttpRequestPrinterTest {
         HttpRequestPrinter printer = new HttpRequestPrinter(prepareRequest());
         assertThat(printer.getAsString()).isEqualTo("POST /oisaje?query1=value2 HTTP/1.1\r\n" +
                 "Host: test.test\r\n" +
-                "Content-Type: application/json; charset=UTF-8\r\n" +
                 "Header1: value1\r\n" +
                 "Authorization: token\r\n" +
+                "Content-Type: application/json; charset=UTF-8\r\n" +
                 "\r\n" +
                 "{\n" +
                 "\t\"tkoast\":\"raskpor\",\n" +

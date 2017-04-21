@@ -119,6 +119,22 @@ public class JsonResponseAssertions implements Assertions<Object> {
         return new JsonResponseAssertions(expectedStatusCode, compiler.getContent());
     }
 
+    /**
+     * Creates a {@code {@link JsonResponseAssertions}} object which expects the specified response HTTP status code and the
+     * serialized JSON representation of the specified model.
+     *
+     * The comparison is made by serializing the provided expected model and comparing the resultant JSON String to the response
+     * body's content as with {@link #fromString(int, String)}.
+     *
+     * @param expectedStatusCode The expected HTTP status code
+     * @param expectedModel      The model which will be deserialized into the expected JSON object.
+     * @return An assertions object for use with the {@link rocks.bastion.core.builder.AssertionsBuilder#withAssertions(Assertions)} method
+     */
+    public static JsonResponseAssertions fromModel(int expectedStatusCode, Object expectedModel) {
+        String expectedJson = new JsonSerializer(expectedModel).serialize();
+        return fromString(expectedStatusCode, expectedJson);
+    }
+
     private int expectedStatusCode;
     private ContentType contentType;
     private String expectedJson;

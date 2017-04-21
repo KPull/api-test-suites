@@ -2,10 +2,10 @@ package rocks.bastion.core;
 
 import rocks.bastion.core.configuration.Configuration;
 import rocks.bastion.core.event.*;
-import rocks.bastion.core.model.JsonResponseDecoder;
-import rocks.bastion.core.model.ResponseDecoder;
-import rocks.bastion.core.model.ResponseDecodersRegistrar;
-import rocks.bastion.core.model.StringResponseDecoder;
+import rocks.bastion.core.view.JsonResponseDecoder;
+import rocks.bastion.core.view.ResponseDecoder;
+import rocks.bastion.core.view.ResponseDecodersRegistrar;
+import rocks.bastion.core.view.StringResponseDecoder;
 
 /**
  * The default implementation of a {@link BastionFactory} which registers a basic set of {@link ResponseDecoder model converters}. Also registers

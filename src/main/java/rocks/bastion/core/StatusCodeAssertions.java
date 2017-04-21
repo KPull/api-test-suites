@@ -1,9 +1,10 @@
 package rocks.bastion.core;
 
-import com.google.common.collect.Iterables;
-import org.apache.commons.lang3.ArrayUtils;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.primitives.Ints;
 
 import java.util.Objects;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -21,18 +22,7 @@ public final class StatusCodeAssertions implements Assertions<Object> {
      * @throws IllegalArgumentException Thrown if the supplied array is empty
      */
     public static StatusCodeAssertions expecting(int... expectedStatusCodes) {
-        return new StatusCodeAssertions(expectedStatusCodes);
-    }
-
-    /**
-     * Initialise a assertions object expecting the HTTP response status code to be equal to any one of the given status codes.
-     *
-     * @param expectedStatusCodes The non-empty array of status codes to match against
-     * @return An assertions object for use with the {@link rocks.bastion.core.builder.AssertionsBuilder#withAssertions(Assertions)} method
-     * @throws IllegalArgumentException Thrown if the supplied array is empty
-     */
-    public static StatusCodeAssertions expecting(Integer... expectedStatusCodes) {
-        return expecting(ArrayUtils.toPrimitive(expectedStatusCodes));
+        return expecting(Ints.asList(expectedStatusCodes));
     }
 
     /**
@@ -43,14 +33,14 @@ public final class StatusCodeAssertions implements Assertions<Object> {
      * @throws IllegalArgumentException Thrown if the supplied array is empty
      */
     public static StatusCodeAssertions expecting(Iterable<Integer> expectedStatusCodes) {
-        return expecting(Iterables.toArray(expectedStatusCodes, Integer.class));
+        return new StatusCodeAssertions(ImmutableSet.copyOf(expectedStatusCodes));
     }
 
-    private final int[] expectedStatusCodes;
+    private final Set<Integer> expectedStatusCodes;
 
-    private StatusCodeAssertions(int... expectedStatusCodes) {
+    private StatusCodeAssertions(Set<Integer> expectedStatusCodes) {
         Objects.requireNonNull(expectedStatusCodes);
-        if (expectedStatusCodes.length == 0) {
+        if (expectedStatusCodes.isEmpty()) {
             throw new IllegalArgumentException("The given list of status codes cannot be empty");
         }
         this.expectedStatusCodes = expectedStatusCodes;
@@ -58,7 +48,6 @@ public final class StatusCodeAssertions implements Assertions<Object> {
 
     @Override
     public void execute(int statusCode, ModelResponse<?> response, Object model) throws AssertionError {
-        assertThat(statusCode).describedAs("HTTP Response Status Code").matches(actualStatusCode ->
-                ArrayUtils.contains(expectedStatusCodes, actualStatusCode));
+        assertThat(statusCode).describedAs("HTTP Response Status Code").matches(expectedStatusCodes::contains);
     }
 }

@@ -1,17 +1,14 @@
 package rocks.bastion.support;
 
 import org.junit.Test;
-import org.junit.runner.RunWith;
 import rocks.bastion.Bastion;
 import rocks.bastion.core.json.JsonRequest;
 import rocks.bastion.core.json.JsonResponseAssertions;
-import rocks.bastion.junit.BastionRunner;
 import rocks.bastion.support.embedded.Sushi;
 import rocks.bastion.support.embedded.TestWithEmbeddedServer;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@RunWith(BastionRunner.class)
 public class CreateSushiTest extends TestWithEmbeddedServer {
 
     @Test
@@ -24,9 +21,6 @@ public class CreateSushiTest extends TestWithEmbeddedServer {
                     assertThat(statusCode).isEqualTo(201);
                     assertThat(model.getName()).isEqualTo("happiness");
                 })
-                .thenDo((statusCode, response, model) -> {
-                    // do stuff
-                })
                 .call();
 
         Bastion.request("SUCCESS (Again)", new CreateSushiRequest())
@@ -36,9 +30,6 @@ public class CreateSushiTest extends TestWithEmbeddedServer {
                     assertThat(response.getContentType().get().getMimeType()).isEqualToIgnoringCase("application/json");
                     assertThat(statusCode).isEqualTo(201);
                     assertThat(model.getName()).isEqualTo("happiness");
-                })
-                .thenDo((statusCode, response, model) -> {
-                    // do stuff
                 })
                 .call();
     }

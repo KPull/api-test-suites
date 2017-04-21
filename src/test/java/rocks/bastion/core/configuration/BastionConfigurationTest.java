@@ -1,5 +1,6 @@
 package rocks.bastion.core.configuration;
 
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import rocks.bastion.Bastion;
@@ -17,6 +18,11 @@ public class BastionConfigurationTest {
     @Before
     public void before() {
         BastionFactory.getDefaultBastionFactory().setConfiguration(new Configuration());
+    }
+
+    @After
+    public void cleanup() {
+        Bastion.globals().clear();
     }
 
     @Test

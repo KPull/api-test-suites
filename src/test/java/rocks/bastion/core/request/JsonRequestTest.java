@@ -8,9 +8,12 @@ import rocks.bastion.core.HttpMethod;
 import rocks.bastion.core.json.InvalidJsonException;
 import rocks.bastion.core.json.JsonRequest;
 import rocks.bastion.core.resource.ResourceNotFoundException;
+import rocks.bastion.support.embedded.Sushi;
 
 import java.net.URISyntaxException;
 import java.util.Collections;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -85,6 +88,57 @@ public class JsonRequestTest {
     @Test(expected = ResourceNotFoundException.class)
     public void putFromFile_inexistantFile_shouldThrowAnException() throws Exception {
         JsonRequest request = JsonRequest.putFromResource("http://test.test", "inexistant.json");
+    }
+
+    @Test
+    public void fromModel_validModel_shouldReturnARequest() throws Exception {
+        Sushi model = Sushi.newSushi().id(19).name("Salmon Nigiri").price(10L).type(Sushi.Type.NIGIRI).build();
+        JsonRequest jsonRequest = JsonRequest.fromModel(HttpMethod.POST, "http://test.test", model);
+        assertJsonRequestAttributes(jsonRequest, "POST http://test.test", HttpMethod.POST,
+                "{\"id\":19,\"name\":\"Salmon Nigiri\",\"price\":10,\"type\":\"NIGIRI\"}");
+    }
+
+    @Test
+    public void fromModel_parametrisedTypeModel_shouldReturnARequest() throws Exception {
+        List<Sushi> model = new LinkedList<>();
+        model.add(Sushi.newSushi().id(19).name("Salmon Nigiri").price(10L).type(Sushi.Type.NIGIRI).build());
+        model.add(Sushi.newSushi().id(29).name("Tuna Nigiri").price(20L).type(Sushi.Type.NIGIRI).build());
+        JsonRequest jsonRequest = JsonRequest.fromModel(HttpMethod.POST, "http://test.test", model);
+        assertJsonRequestAttributes(jsonRequest, "POST http://test.test", HttpMethod.POST,
+                "[{\"id\":19,\"name\":\"Salmon Nigiri\",\"price\":10,\"type\":\"NIGIRI\"},{\"id\":29,\"name\":\"Tuna Nigiri\",\"price\":20,\"type\":\"NIGIRI\"}]");
+    }
+
+    @Test
+    public void postFromModel_validModel_shouldReturnARequest() throws Exception {
+        Sushi model = Sushi.newSushi().id(19).name("Salmon Nigiri").price(10L).type(Sushi.Type.NIGIRI).build();
+        JsonRequest jsonRequest = JsonRequest.postFromModel("http://test.test", model);
+        assertJsonRequestAttributes(jsonRequest, "POST http://test.test", HttpMethod.POST,
+                "{\"id\":19,\"name\":\"Salmon Nigiri\",\"price\":10,\"type\":\"NIGIRI\"}");
+    }
+
+    @Test
+    public void putFromModel_validModel_shouldReturnARequest() throws Exception {
+        Sushi model = Sushi.newSushi().id(19).name("Salmon Nigiri").price(10L).type(Sushi.Type.NIGIRI).build();
+        JsonRequest jsonRequest = JsonRequest.putFromModel("http://test.test", model);
+        assertJsonRequestAttributes(jsonRequest, "PUT http://test.test", HttpMethod.PUT,
+                "{\"id\":19,\"name\":\"Salmon Nigiri\",\"price\":10,\"type\":\"NIGIRI\"}");
+    }
+
+    @Test
+    public void patchFromModel_validModel_shouldReturnARequest() throws Exception {
+        Sushi model = Sushi.newSushi().id(19).name("Salmon Nigiri").price(10L).type(Sushi.Type.NIGIRI).build();
+        JsonRequest jsonRequest = JsonRequest.patchFromModel("http://test.test", model);
+        assertJsonRequestAttributes(jsonRequest, "PATCH http://test.test", HttpMethod.PATCH,
+                "{\"id\":19,\"name\":\"Salmon Nigiri\",\"price\":10,\"type\":\"NIGIRI\"}");
+    }
+
+
+    @Test
+    public void deleteFromModel_validModel_shouldReturnARequest() throws Exception {
+        Sushi model = Sushi.newSushi().id(19).name("Salmon Nigiri").price(10L).type(Sushi.Type.NIGIRI).build();
+        JsonRequest jsonRequest = JsonRequest.deleteFromModel("http://test.test", model);
+        assertJsonRequestAttributes(jsonRequest, "DELETE http://test.test", HttpMethod.DELETE,
+                "{\"id\":19,\"name\":\"Salmon Nigiri\",\"price\":10,\"type\":\"NIGIRI\"}");
     }
 
     @Test

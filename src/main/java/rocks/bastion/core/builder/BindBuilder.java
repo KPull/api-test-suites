@@ -1,7 +1,6 @@
 package rocks.bastion.core.builder;
 
 import rocks.bastion.core.Assertions;
-import rocks.bastion.core.Callback;
 
 /**
  * Defines the operations that can be performed on a Bastion builder before it has been bound to a model type. Binding the
@@ -26,8 +25,8 @@ public interface BindBuilder {
      * pass in a constructable type (a non-abstract class which can be instantiated) because the various decoders used by
      * Bastion, such as the Jackson JSON parser, only work if it can construct an instance of the model.
      * <br><br>
-     * The bound type will be used further on when the user specifies {@link AssertionsBuilder#withAssertions(Assertions) assertions},
-     * {@link CallbackBuilder#thenDo(Callback) callbacks} or outright retrieves the {@link PostExecutionBuilder#getModel() decoded response model}
+     * The bound type will be used further on when the user specifies {@link AssertionsBuilder#withAssertions(Assertions)
+     * assertions} or outright retrieves the {@link PostExecutionBuilder#getModel() decoded response model}
      * as the bound model (of the correct type) will be provided by Bastion.
      *
      * @param modelType A non-{@literal null} class type which will be used when constructing the response model

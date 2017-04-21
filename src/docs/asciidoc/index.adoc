@@ -1,0 +1,703 @@
+= Bastion User Guide ({bastion-version})
+:icons:
+:data-uri:
+:toc:
+:numbered:
+:website: http://bastion.rocks/
+
+////
+This file is processed during compilation to produce the final version of the User Guide.
+To build and generate the user guide use the following command:
+     mvn generate-resources -Prelease
+////
+
+Bastion is a Java-based library for testing HTTP APIs and endpoints. Developers can use Bastion to test any type of HTTP service
+but the library also provides built-in classes for testing endpoints validating responses containing various different content types including
+JSON and Form URL encoded data.
+
+This reference manual explains all the features of the Bastion library and how to use them. For a more detailed description of
+the Bastion API, please see the http://bastion.rocks/javadocs/index.html[Bastion JavaDocs].
+
+Dependency
+----------
+
+Using Bastion for your project is easily done by using a dependency management tool. Bastion is available on the Maven Central repository.
+
+Maven
+~~~~~
+
+For Java projects with a `pom.xml` file, you can add the following dependency to your `<dependencies>` section to download Bastion and make
+it available for your project's tests.
+
+---------------------------------------
+<dependency>
+    <groupId>rocks.bastion</groupId>
+    <artifactId>bastion</artifactId>
+    <version>{bastion-version}</version>
+    <scope>test</scope>
+</dependency>
+---------------------------------------
+
+Groovy Grapes
+~~~~~~~~~~~~~
+
+If you are using Groovy scripts for your tests, you can easily download Bastion directly from within your script files, using Groovy Grapes.
+Add the following line to your `import` statement to download Bastion and make it available to your script.
+
+---------------------------------------
+@Grapes(
+    @Grab(group='rocks.bastion', module='bastion', version='{bastion-version}')
+)
+import rocks.bastion.Bastion
+---------------------------------------
+
+Gradle
+~~~~~~
+
+If you're using Gradle as your dependency management tool, add the following line to your Gradle file to use Bastion.
+
+---------------------------------------
+testCompile group: 'rocks.bastion', name: 'bastion', version: '{bastion-version}'
+---------------------------------------
+
+Quickstart
+----------
+
+Bastion makes it very easy to write simple API tests. Let us look at a test for an API which returns JSON.
+
+[source,java]
+--------------------------------------------
+[ex:quickstart]
+--------------------------------------------
+
+Overview
+--------
+
+Bastion tests are implemented using the `Bastion` builder. This class provides a fluent-like interface for specifying tests. In the code snippet
+below, we show how all the methods of the builder would look like when executed together.
+
+---------------------------
+Bastion.request(...)        <1>
+       .bind(...)           <2>
+       .withAssertions(...) <3>
+       .call()              <4>
+       .getModel()          <5>
+---------------------------
+
+IMPORTANT: This shows the basic structure of a Bastion test. Each one of the methods listed above (except `request()` and `call()`) is optional but they still
+must be specified in the order above. If you chose to skip `withAssertions()`, for example, you must call `bind()` before `call()`. The list below
+explains each one of these methods separately.
+
+<1> `request()`: This method is the main entry-point to create a Bastion test. You must specify a name which will identify this test in test reports
+and also provide a _request_ object that tells Bastion what kind of HTTP request to send. Bastion provides a number of different
+built-in requests you can use (eg. `JsonRequest`) but you can also implement your own request types. For a list of all built-in requests see
+[Requests](#requests). The [Custom Requests](#custom-requests) section explains how to implement your own requests.
+<2> `bind()`: Tells Bastion which model class to use when interpreting the incoming HTTP entity. When Bastion receives a response from the remote
+server, it will decode the received entity data into an object of the given type. If this decoding process fails for some reason,
+the entire test is marked as failed. By providing a model class using the `bind()` method, you'll have this type information available
+for later on when calling the `withAssertions()`, `thenDo()`, `getModel()` and `getResponse().getModel()` methods.
+<3> `withAssertions()`: Takes an _assertions_ object which will verify that the response returned by the remote server is correct.
+Bastion provides a number of different built-in assertion objects for common verifications you might want to do (eg. `JsonResponseAssertions`) but you can also
+implement your own assertions. For a list of all built-in assertions see [Assertions](#assertions). The
+[Custom Assertions](#custom-assertions) section explains how to implement your own assertions.
+<5> `call()`: Executes the API request configured with the previous commands. Any assertions will be applied on the received response. The call operation
+will fail if Bastion is unable to bind the received response to a model or the assertions fail.
+<6> `getResponse()`: After the `call()` method is executed, you can get the HTTP response object received using the `getResponse()` method. The returned
+response object will contain the bound model obtained from the response data.
+<6> `getModel()`: After the `call()` method is executed, you can get the bound model obtained from the response data.
+<6> `getView()`: After the `call()` method is executed, you can get a specified Java object which represents the response data.
+
+Requests
+--------
+
+_Request_ objects are passed to the `request()` method which is the first builder method invoked when using the `Bastion` builder. A `Request` object
+defines the HTTP data that is sent to the remote server while the test is executing. We suggest using one of the built-in `Request` subclasses when
+supplying your request data. Alternatively, if none of the built-in request subclasses are useful, you can create your own `Request` subclass
+as explained in the section <<custom-requests>>
+
+.Built-in request classes
+Bastion provides the following list of built-in `Request` subclasses:
+
+* <<general-request, GeneralRequest>>: A simple HTTP request which allows for any arbitrary entity data.
+* <<json-request,JsonRequest>>: An HTTP request which takes a JSON string as its entity data.
+* <<form-url-encoded-request,FormUrlEncodedRequest>>: An HTTP request which takes data in the form of a map which is then sent as a URL encoded string
+as if the data was submitted using an HTML form.
+
+[[request-attributes]]
+.Adding request attributes
+
+[[source,java]]
+----
+[ex:general-request-get-with-attributes]
+----
+
+Any `Request` supports the following attributes, some of which are standard to HTTP:
+
+* *Headers*: Use the `addHeader()` method to add a header to a request.
+* *Query Parameters*: Use the `addQueryParam()` method to add a query parameter to a request.
+* *Route Parameters*: Use the `addRouteParam()` method to add a route parameter value to a request. Route parameters are placeholder variables
+(delimited using a pair of braces) in the request's URL which are then replaced by values which you specify using the `addRouteParam()` method.
+The following is an example of a URL with route parameters:
+-----
+http://reddit.com/r/{subreddit}
+-----
+* *Content Type*: The content type header describes the format for the data in the request's payload. The content type is expressed as a MIME
+type string. The content type _may change_ how Bastion formats the request's entity type body. See the particular request's section in this user
+guide for more information about how to set the content type.
+* *Timeout*: Set a maximum timeout, in milliseconds, for the request. If the response does not arrive within the specified number of seconds
+the test fails its assertions. Use the `setTimeout()` method to change the timeout.
+* *Entity Body*: Contains the payload data that is sent with the request. Each different type of request defines its own way of accepting a body
+object. `JsonRequest` for example accepts a file, JSON string or template and the accepted data will be sent as JSON in the request's body. You
+need to see the specific request's type documentation for more information about how to provide the entity body data.
+
+[[general-request]]
+General Request
+~~~~~~~~~~~~~~~
+
+`GeneralRequest` is the universal HTTP request, able to take any arbitrary entity data string. To initialise a new `GeneralRequest` use any of the following
+static factory methods, giving the URL you want to send the request on:
+
+* `GeneralRequest.get()`: Initialise an HTTP `GET` request.
+* `GeneralRequest.post()`: Initialise an HTTP `post()` request. This method also takes a string to use as the HTTP entity data (use `GeneralRequest.EMPTY_BODY` to send no data).
+* `GeneralRequest.delete()`: Initialise an HTTP `delete()` request. This method also takes a string to use as the HTTP entity data (use `GeneralRequest.EMPTY_BODY` to send no data).
+* `GeneralRequest.put()`: Initialise an HTTP `put()` request. This method also takes a string to use as the HTTP entity data (use `GeneralRequest.EMPTY_BODY` to send no data).
+* `GeneralRequest.patch()`: Initialise an HTTP `patch()` request. This method also takes a string to use as the HTTP entity data (use `GeneralRequest.EMPTY_BODY` to send no data).
+
+Calling any of the above methods will give you an initialised `GeneralRequest` object which can be used with `Bastion.request()`. The request will not initially
+have any HTTP headers, query parameters or route parameters.
+
+Once you have an instance of `GeneralRequest`, you can call methods to modify *Headers*, *Query Parameters*, *Route Parameters* as
+explained in section <<request-attributes>>.
+
+TIP: By default, the `GeneralRequest` will have content type `text/plain`. Use `setContentType()` on the request to change the content type
+to something else.
+
+.General Request Example (GET)
+[source,java]
+-----
+[ex:general-request-get]
+-----
+
+.General Request with Attributes Example
+[source,java]
+----
+[ex:general-request-get-with-attributes]
+----
+
+.General Request Example (POST)
+[source,java]
+----
+[ex:general-request-post]
+----
+
+[[file-request]]
+File Request
+~~~~~~~~~~~~
+
+If you want to load entity data from a file instead of typing it out in source code, use `FileRequest`. This is very similar to `GeneralRequest`,
+in that you are not restricted to the type of data you're sending. To initialise a new `FileRequest` use any of the following
+static factory methods, giving the URL you want to send the request on and a resource URL. Bastion will load the data from the specified URL
+and send it as the request data.
+
+* `FileRequest.post()`.
+* `FileRequest.delete()`.
+* `FileRequest.put()`.
+* `FileRequest.patch()`.
+* `FileRequest.withMethod()`: This factory method also accepts an HTTP method of your choice.
+
+Bastion will attempt to guess what should go into the `Content-type` header depending on the filename. If a MIME type could not be chosen,
+`plain/text` will be used as the MIME type.
+
+WARNING: A known issue currently exists on MacOS-based systems: a JDK bug prevents Bastion from guessing the file type in which case `plain/text`
+ will be used.
+
+.Send a POST request using a file
+[source,java]
+-----
+[ex:file-request-post]
+-----
+
+[[json-request]]
+JSON Request
+~~~~~~~~~~~~
+
+`JsonRequest` is a request object specially designed to handle JSON data. Unlike `GeneralRequest`, `JsonRequest` will set the appropriate content type header
+to indicate that the data being sent has mime-type `application/json`. The request object is initialised using a JSON string (or file) and will validate the
+given data to ensure that it is valid JSON (if you don't want this validation, use `GeneralRequest` instead). To initialise a new `JsonRequest` use any of the
+following static factory methods, giving the URL you want to send the request on:
+
+* `JsonRequest.fromString()`: Allows you to create a `JsonRequest` with the given HTTP method (`GET`, `POST`, etc.) and the given JSON string.
+* `JsonRequest.fromResource()`: Allows you to create a `JsonRequest` with the given HTTP method. The JSON data to send is loaded from the given file or classpath resource.
+* `JsonRequest.fromTemplate()`: Like `fromResource()` but this method will also take a map of template variable names to replacement values as keys and a Mustache template file. The template data is loaded and the variables replaced by the values in the given map. The resulting data is then used as the JSON entity for the request.
+* `JsonRequest.fromModel()`: Allows you to create a `JsonRequest` with the given HTTP method. The provided object is serialized, using the Jackson library, into a JSON string.
+
+WARNING: The request object here will *validate* that the provided data is valid JSON, in all cases. If you want to send invalid JSON, see <<general-request>> instead.
+
+The factory methods above also have utility methods which do not take an `HttpMethod` argument as follows:
+
+* `JsonRequest.postFromString()`
+* `JsonRequest.postFromResource()`
+* `JsonRequest.postfromTemplate()`
+* `JsonRequest.putFromString()`
+* `JsonRequest.putFromResource()`
+* ... and so on.
+
+.JSON request from a string
+[source,java]
+-----
+[ex:json-request-post-from-string]
+-----
+
+[source,java]
+-----
+[ex:json-request-patch-from-string]
+-----
+
+Use the `fromString()` family of static factory methods to directly supply the JSON data to use in the test. You can simply type in
+your JSON request, as you would using an HTTP client, and Bastion will take care of all the other details related to JSON requests
+for you.
+
+TIP: In a language like Java, typing the request data directly in the test can quickly start becoming unwieldy due to all
+the extra escape characters you need. We recommend using a language like Groovy, which supports multi-line strings, allowing
+you to avoid all the unnecessary escape characters.
+
+.JSON request from a file
+[source,java]
+-----
+[ex:json-request-post-from-resource]
+-----
+
+Use the `fromResource()` family of static factory methods to load a simple JSON file as the HTTP entity body. The `fromResource()`
+methods can take any URL including those beginning with the `classpath:` prefix (which loads a file from the
+classpath).
+
+.JSON request from a template
+
+[source,java]
+-----
+[ex:json-request-post-from-template]
+-----
+
+The `fromTemplate()` family of static factory methods are similar to `fromResource()` but they also take any additional argument
+containing a map where the keys are variable names and the values are the replacement values for the variable placeholders in the
+template.
+
+The template files must be Mustache templates. An example Mustache template is shown below:
+
+[source,javascript]
+-----
+{
+  "name": "john",
+  "timestamp": "2016-10-15T20:00:25+0100",
+  "favourites": {
+    "food": "{{ food }}",
+    "colours": ["blue", "red"],
+    "number": 23
+  }
+}
+-----
+
+Notice the `food` variable in the template: this will get replaced by the value `apples` in the test above.
+
+.JSON Request from Model
+
+[source,javascript]
+-----
+[ex:json-request-post-from-model]
+-----
+
+Use the `fromModel()` family of static factory methods to send any Java object serialized as a JSON string. You can annotate your object's
+class with Jackson annotations to customise how the provided object is serialized.
+
+.JSON Request with Attributes
+
+[source,javascript]
+-----
+[ex:json-request-post-from-resource-override]
+-----
+
+Once you have an instance of `JsonRequest`, you can call methods to modify *Headers*, *Query Parameters* and *Route Parameters* as
+explained in section <<request-attributes, Request Attributes>>. You can also change the *Content type* header that is sent using `overrideContentType()`
+(by default, `application/json` is sent).
+
+
+[[form-url-encoded-request]]
+Form URL Encoded Data Request
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+`FormUrlEncodedRequest` is a request object that allows you send URL encoded data as part of the HTTP request. This request is equivalent to
+requests sent by HTML forms (hence the `Form` in the name). The request will automatically be configured to have the mime-type `application/x-www-form-urlencoded`.
+Unlike `JsonRequest`, after initialising a `ForumUrlEncodedRequest`, you will need to call additional methods to fill in the request's data.
+
+First, use any of the following static factory methods and specify the URL to send the request to:
+
+* `FormUrlEncodedRequest.post()`
+* `FormUrlEncodedRequest.put()`
+* `FormUrlEncodedRequest.delete()`
+* `FormUrlEncodedRequest.patch()`
+* `FormUrlEncodedRequest.withMethod()`
+
+TIP: The `withMethod()` factory method allows you choose any HTTP method you want (including `GET`). Use it when none of the
+other standard factory methods are suitable for your test.
+
+Use the `addDataParameter()` or `addDataParameters()` methods to add the data
+which will go into the request's entity body. The `FormUrlEncodedRequest` will automatically format the data you supply, internally,
+into a URL encoded string. An example, using `FormUrlEncodedRequest` follows below,
+
+[source,java]
+-----
+[ex:form-url-encoded-request-post]
+-----
+
+.Form URL Encoded Request with Attributes
+
+[source,java]
+-----
+[ex:form-url-encoded-request-put-override-content-type]
+-----
+
+Once you have an instance of `FormUrlEncodedRequest`, you can call methods to modify *Headers*, *Query Parameters* and *Route Parameters* as
+explained in section <<request-attributes, Request Attributes>>. You can also change the *Content type* header that is sent using
+`overrideContentType()` (by default, `application/x-www-form-urlencoded` is sent).
+
+[[custom-requests]]
+Custom Requests
+~~~~~~~~~~~~~~~
+
+Bastion gives you the option of developing your own request classes. This is useful if you notice that you are repeatedly
+using a particular request in your tests. For the sake of maintainability and better software design, you can avoid repeatedly
+initialising the same request, over and over again, by implementing your own request type.
+
+The relevant interface to implement is `HttpRequest`. This interface defines the following methods which you need to implement:
+
+* `name()`: Returns a descriptive name of the current request object. This name _might_ appear in test reports, so returning
+a good name helps you debug faster when a problem occurs.
+* `url()`: Returns the URL string which the request will be sent to. Bastion is quite lenient on what constitutes a valid URL.
+If a question mark appears in the URL, for example, anything after the question mark will be added to the request's query parameters.
+* `method()`: Returns the HTTP method that the request will be sent with. This could be `GET`, `POST`, `PUT`, etc.
+* `contentType()`: Returns the value which will be used for the `Content-type` HTTP header. You are not required to return
+a content type, hence this method returns an `Optional` value.
+* `headers()`: Returns the possibly empty `Collection` of `ApiHeader` objects (or rather, HTTP headers) which will be sent with the request.
+* `queryParams()`: Returns the possibly empty `Collection` of `ApiQueryParam` objects which are sent with the HTTP request.
+* `routeParams()`: Returns the values to use for filling in any route parameters in this request's URL. Route parameters are
+variables, enclosed within a pair of braces, in the requet's URL.
+* `timeout()`: Returns a number, in milliseconds, after which the request will timeout and the request fails. Return `HttpRequest.USE_GLOBAL_TIMEOUT`
+to use the configured default timeout. You do not need to implement this method if you want to use the default value.
+* `body()`: Returns the object to use for the HTTP entity body. Bastion will typically send the returned object's `toString()`
+value but this _might_ be depend on the request's content type.
+
+Once you've implemented your own `HttpRequest`, you can then pass it, as if it was any other request, to the `Bastion.request()`
+method.
+
+The built-in `HttpRequest` implementations provided with Bastion are good examples. A simpler example is found in the test sources called
+`CreateSushiRequest`.
+
+TIP: If you've developed a `HttpRequest` implementation which you think might be useful for the Bastion community and other users,
+please consider submitting a pull request to the main Bastion repository. See the <<contribute>> section for more information.
+
+Assertions
+----------
+
+_Assertions_ objects are passed to the `withAssertions()` method which is called either after the `request()` method or the `bind()` method when using the
+`Bastion` builder. An `Assertions` objects defines the test predicate applied on the received HTTP response. If any of the applied assertions fail, then
+the test fails. Certain `Assertions` objects will provide helpful messages and logs to explain how to transform the received response into the expected response.
+When supplying `Assertions` using the `withAssertions()` method, you can use the `and()` method on the Assertions themselves to chain `Assertions` together.
+
+We suggest using one of the built-in `Assertions` subclasses when defining your tests. Alternatively, if none of the built-in assertions subclasses are
+useful, you can create your own `Assertions` subclass as explained in the section <<custom-assertions>>.
+
+Bastion provides the following list of built-in `Assertions` subclasses.
+
+* <<json-assertions,JsonResponseAssertions>>: Asserts that a received response is in JSON format and that the received response data is as expected.
+* <<json-schema,JsonSchemaAssertions>>: Asserts that a received response is in JSON format and that the received response data at least conforms to the given JSON schema.
+* <<status-code-assertions,StatusCodeAssertions>>: Asserts that a received response has any of the expected HTTP status codes.
+
+[[json-assertions]]
+JSON Assertion
+~~~~~~~~~~~~~~
+
+`JsonResponseAssertions` lets you test that specific JSON data has been received. The expected JSON data
+can be given as a JSON string, loading from a file or loaded and compiled from a template file.
+
+It is important to realise that when comparing the expected JSON with the actual JSON received in the response, Bastion will be smart enough
+to ignore any trivial differences in the data. In particular, JSON is compared structurally as opposed to a straight-up string equality check.
+Properties (not array values!) may be in a different order and there might be whitespace in the received data, but unless the JSON structure
+is different, the test will pass.
+
+First, you must initialise a `JsonResponseAssertions` object using one of the three static factory methods:
+
+* `JsonResponseAssertions.fromString()`: Allows you to create a `JsonResponseAssertions` expecting the given HTTP status code and the given
+JSON.
+* `JsonResponseAssertions.fromResource()`: Allows you to create a `JsonResponseAssertions` expecting the given HTTP status code. The JSON data to assert for is loaded from the given file or classpath resource.
+* `JsonResponseAssertions.fromTemplate()`: Like `fromResource()` but this method will also take a map of template variable names to replacement values as keys and a Mustache template file. The template data is loaded and the variables replaced by the values in the given map.
+The resulting data is then used as the expected JSON entity for the assertions.
+
+WARNING: The assertions object here will *validate* that the provided expected JSON is valid.
+
+.JSON Response Assertions from String
+[source,java]
+----
+[ex:json-response-assertions]
+----
+
+.JSON Response Assertions from Resource
+[source,java]
+----
+[ex:json-response-assertions-from-resource]
+----
+
+.JSON Response Assertions Failure
+
+`JsonResponseAssertions` give some very useful insight into what your API under test is doing wrong. For example, the following test has been
+set up to fail.
+
+[source,java]
+----
+[ex:json-response-assertions-wrong-value]
+----
+
+Since the expected and actual JSON is compared structurally, Bastion outputs a JSON patch which describes exactly how to transform the actual
+JSON into the received JSON. For the test above, for example, we get:
+
+[source]
+----
+java.lang.AssertionError: Actual response body is not as expected.
+The following JSON Patch (as per RFC-6902) tells you what operations you need to perform to transform the actual response body into the expected response body:
+    [{"op":"replace","path":"/price","value":"EUR 5.60"}]
+----
+
+For the above test to pass, we need to replace the _value_ of the `price` property in the API with the value `EUR 5.60`.
+
+.Additional operations on JsonResponseAssertions
+Once you have a `JsonResponseAssertions` object, you can call the following methods on it, which will change the behaviour of the assertions
+Bastion performs:
+
+* `overrideContentType()`: Changes the expected content type header of the response. By default, Bastion will check that the content type
+is `application/json` for the assertions to pass. You can change it using this method, if you need to.
+* `ignoreValuesForProperties()`: Ignores the value returned in the response for the specified JSON properties. This is useful if you have an
+auto-generated ID in the response, for example. Bastion will still check that the property appears in the response but will ignore any
+difference in its value.
+
+[source,java]
+-----
+[ex:json-response-assertions-ignore-field]
+-----
+
+[[json-schema-assertions]]
+JSON Schema Assertion
+~~~~~~~~~~~~~~~~~~~~~
+
+This assertions object is similar to <<json-assertions,JsonResponseAssertions>> but takes a JSON schema as its input. The assertions object
+will check that the received response conforms to the given JSON schema. This is useful when you do not care about the actual content of the
+response (or perhaps you don't know what it will be yet) but do care that it is always in a consistent format.
+
+First, you must initialise a `JsonSchemaAssertions` object using one of the two static factory methods:
+
+* `JsonSchemaAssertions.fromString()`: Allows you to create a `JsonSchemaAssertions` where the schema to test for is supplied as a string
+argument to this method.
+* `JsonSchemaAssertions.fromResource()`: Allows you to create a `JsonSchemaAssertions` where the schema to test for is loaded from the given file or classpath resource.
+
+TIP: Just like `JsonResponseAssertions`, this assertions object supports calling `overrideContentType()` to change
+ the expected content-type header.
+
+.JSON Schema Assertions loaded from Resource
+[source,java]
+----
+[ex:json-schema-assertions-from-resource]
+----
+
+.JSON Schema Assertions loaded from String
+[source,java]
+----
+[ex:json-schema-assertions-from-string]
+----
+
+TIP: As you can see from the example above, JSON Schema quickly becomes very unwieldy to type out in a Java source file. We strongly
+recommend supplying the schema from an external resource or, if you really must type out the schema as a string, use an alternative
+JVM language which supports multiline strings (like Groovy).
+
+[[status-code-assertions]]
+Status Code Assertions
+~~~~~~~~~~~~~~~~~~~~~~
+
+This is a simple assertions object which asserts that the HTTP status code of the response is as expected. You can supply multiple expected
+status codes and the assertion will pass if the status code matches any of the given expected status codes.
+
+To instantiate a `StatusCodeAssertions` object use the `StatusCodeAssertions.expecting()` static factory method. The static factory method
+takes any number of HTTP status codes which will all be considered as valid response codes.
+
+.Single Status Code Assertions
+
+[source,java]
+----
+[ex:status-code-assertions]
+----
+
+.Multiple Status Code Assertions
+
+[source,java]
+----
+[ex:status-code-assertions-multiple-args]
+----
+
+[[custom-assertions]]
+Custom Assertions
+~~~~~~~~~~~~~~~~~
+
+Bastion gives you the option of developing your own assertions classes. This is useful if you notice that you are repeatedly
+using a particular assertion in your tests. For the sake of maintainability and better software design, you can avoid repeatedly
+initialising the same assertions, over and over again, by implementing your own assertions type.
+
+The relevant interface to implement is `Assertions`. This interface defines a single method which you need to implement: `execute()`.
+The `execute()` method takes the following parameters, which Bastion will provider when the test runs:
+
+* `statusCode`: The HTTP status code of the response.
+* `response` (type: `ModelResponse`): The response object which represents the received response. This object will also contain
+the object that Bastion has <<model-binding,bound>> from the response. You can also obtain an alternate view of the response (which is not
+necessarily the model) using `getView()`.
+* `model`: The object that Bastion has <<model-binding,bound>> from the response. This is provided for convenience so that you don't need to
+use `response.getModel()` every time.
+
+Notice that `Assertions` takes a generic type parameter. This type parameter describes the type of response model that the `Assertions` object is
+expecting. By supplying a good generic type argument in your `Assertions` subclass, the user will always have to `bind()` that model type before
+using your `Assertions` object (see <<model-binding>> section).
+
+Once you've implemented your own `Assertions`, you can then pass it, as if it was any other assertions object, to the `withAssertions()`
+method.
+
+The built-in `Assertions` implementations provided with Bastion are good examples.
+
+TIP: If you've developed an `Assertions` implementation which you think might be useful for the Bastion community and other users,
+please consider submitting a pull request to the main Bastion repository. See the <<contribute>> section for more information.
+
+[[lambda-assertions]]
+Lambda Assertions
+~~~~~~~~~~~~~~~~~
+
+Since the `Assertions` interface explained in <<custom-assertions,Custom Assertions>> contains only one method, it is a functional interface
+which you can implement using a lambda as shown in the next example (the example below contains AssertJ assertions):
+
+[source,java]
+-----
+[ex:lambda-assertions]
+-----
+
+[[model-binding]]
+Binding a Model
+---------------
+
+Most of the time, you will want to extract the data received in an HTTP response, during a test, as a Java object. This lets you more easily
+perform assertions on the Java object itself or perhaps even use the information contained within for a future request inside the same test.
+
+The process for extracting a Java object from the HTTP response data is called *Binding a Model* and is achieved by using the `bind()` method
+after calling `Bastion.request()`. `bind()` takes a Java class type which you'd like to extract.
+
+For example, if the received data is a JSON-formatted string, you can extract a Java object representation of the JSON data by supplying the
+Java type which corresponds to whatever JSON you're expecting. You can also get the JSON AST object bound by Jackson, by binding to `JsonNode`
+directly.
+
+.Bound model in assertions
+
+Once you have bound a model type using `bind()`, the typed model object is available to whatever `Assertions` object you passed to the
+`withAssertions()` method.This is particularly useful if you supply a lambda expression to the `withAssertions()` method as the model object
+will be correctly typed and all the data will be directly available in Java.
+
+.Binding JSON data to Java Objects
+When receiving `application/json` data, if you supply any Java object type to the `bind()` method, Bastion will use the Jackson library to
+deserialise the received JSON data to whatever object type you supplied. This means that you can modify the way data is deserialised in your
+data class using https://github.com/FasterXML/jackson-annotations/wiki/Jackson-Annotations[Jackson Annotations].
+
+[source,java]
+-----
+[ex:bind-model]
+-----
+
+Executing and Getting Data
+--------------------------
+
+Once you have configured a request and an assertions object for Bastion to execute, you can start the test using the `call()` method. Bastion
+will execute the request supplied in `request()`, bind the response to a applicable views (including a model of the type specified in `bind()`)
+and finally assert that the assertions given in `withAssertions()` hold true.
+
+Once executed, you can retrieve the response data as follows:
+
+* `getResponse()`: Returns a complete HTTP `Response` object containing all HTTP headers and the content body. It will also contain the
+model object which was bound by Bastion.
+* `getModel()`: Returns the model object which was bound by Bastion. This is a shortcut method for `getResponse().getModel()`.
+* `getView(...)`: Returns an alternative view object which was bound by Bastion. A view is a Java object which represents the response data
+which was decoded by Bastion. The model returned by `getModel()` is in fact one of the views of the response.
+
+.Getting the entire HTTP response object
+
+[source,java]
+-----
+[ex:get-response]
+-----
+
+.Getting the model object from the response
+
+[source,java]
+-----
+[ex:get-model]
+-----
+
+.Getting the JSON AST representation from the response
+
+[source,java]
+-----
+[ex:get-view]
+-----
+
+Global Configuration
+--------------------
+
+Global configuration allows you to add <<request-attributes,request attributes>> to all requests that are performed by Bastion. This is extremely useful, for example,
+if you have to add an authorization header to your requests after logging in. You can access the following request attributes through `Bastion.globals`:
+
+* *Global Headers*: Use `addHeader()` or `removeHeader()` to modify the global HTTP headers which are appended to every HTTP request.
+* *Global Query Parameters*: Use `addQueryParam()` or `removeQueryParam()` to modify the global query parameters which are appended to every
+HTTP request.
+* *Global Route Parameters*: Use `addRouteParam()` or `removeRouteParam()` to modify the global route parameters which are appended to every
+HTTP request.
+* *Global Timeout*: Use `setTimeout()` to set the timeout value for all HTTP requests (unless otherwise specified differently for a particular
+request).
+
+[source,java]
+-----
+[ex:globals]
+-----
+
+.Clearing Globals
+
+To reset all globals back to their original state, use `Bastion.globals().clear()`.
+
+[source,java]
+-----
+[ex:clear-globals]
+-----
+
+IMPORTANT: In tests which set request globals, you will want to clear them afterwards using JUnit's `@After` annotation unless you want them
+to persist across multiple tests.
+
+[[contribute]]
+Contribute
+----------
+
+Bastion is an open-source project! Open-source means that we encourage you to contribute in any way you can. We will accept all contributions, in any shape
+or form, that help make Bastion better. Here are some things you can do to contribute:
+
+* Send a positive comment to the Bastion contributers. :)
+* https://github.com/KPull/Bastion/issues[Submit an issue] on GitHub containing a bug report or suggestion. We ask you to spend a couple minutes before
+  submitting an issue to check that it has not been submitted earlier. When opening an issue, try to include as much detail as possible so that the
+  community can more easily address your concern.
+* Submit a pull request for any of our https://github.com/KPull/Bastion/issues?q=is%3Aopen+is%3Aissue[open issues]. Some issues are more easy to implement
+  than others and, if you're just starting out, these issues let you get used to the Bastion code structure. If you need any assistance, simply comment on
+  the issue at hand and we'll be glad to help. We ask that you adhere to a consistent code style and employ good programming practice but don't worry if
+  you're unsure about anything: we'll help you get your submission up to scratch as well.
+* You can also https://github.com/KPull/Bastion/pulls[submit a pull request] which is not related to any of the issues currently on GitHub. If you have
+  developed your own `Request` or `Assertions` implementations, for example, and you believe they could be useful to the rest of the Bastion community,
+  we will add them to the library for use in future versions of Bastion.
+* Make our User Guide better. Our User Guide is very important to us and we strive to keep it as up to date as possible. If you spot any omissions, typos,
+  grammatical errors or have an idea of how it can be improved, please submit a pull request. The files for our user guide can be found in the `src/docs/asciidoc`
+  directory.
+* Spread the word. Tell your colleagues about Bastion or write a blog post about Bastion. The more people we can tell Bastion about, the better!

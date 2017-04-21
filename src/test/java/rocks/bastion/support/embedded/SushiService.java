@@ -2,8 +2,7 @@ package rocks.bastion.support.embedded;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonParseException;
-import spark.ResponseTransformer;
-import spark.Spark;
+import spark.*;
 
 import java.math.BigDecimal;
 import java.util.HashMap;
@@ -52,7 +51,7 @@ public class SushiService {
             return restaurantName;
         });
 
-        post("/sushi", (req, res) -> {
+        Route defaultAction = (req, res) -> {
             res.header("Content-type", "application/json");
             Sushi newSushi = json.fromJson(req.body(), Sushi.class);
             long id = nextId.incrementAndGet();
@@ -60,7 +59,11 @@ public class SushiService {
             sushiRepository.put(id, newSushi);
             res.status(SC_CREATED);
             return newSushi;
-        }, json);
+        };
+        post("/sushi", defaultAction, json);
+        delete("/sushi", defaultAction, json);
+        patch("/sushi", defaultAction, json);
+        put("/sushi", defaultAction, json);
 
         get("/sushi", (req, res) -> {
             res.header("Content-type", "application/json");

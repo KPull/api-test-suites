@@ -6,7 +6,7 @@
 
     <groupId>rocks.bastion</groupId>
     <artifactId>bastion</artifactId>
-    <version>0.5-SNAPSHOT</version>
+    <version>0.7-SNAPSHOT</version>
 
     <name>Bastion</name>
     <description>A Java library for testing HTTP API endpoints.</description>
@@ -47,7 +47,9 @@
     </licenses>
 
     <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <jackson.version>2.8.2</jackson.version>
+        <kotlin.version>1.0.6</kotlin.version>
     </properties>
 
     <scm>
@@ -148,9 +150,34 @@
 
     <profiles>
         <profile>
-            <id>release</id>
+            <id>documentation</id>
+            <dependencies>
+                <dependency>
+                    <groupId>org.jetbrains.kotlin</groupId>
+                    <artifactId>kotlin-stdlib</artifactId>
+                    <version>${kotlin.version}</version>
+                    <scope>provided</scope>
+                </dependency>
+            </dependencies>
             <build>
                 <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-javadoc-plugin</artifactId>
+                        <version>2.9.1</version>
+                        <executions>
+                            <execution>
+                                <id>attach-javadocs</id>
+                                <goals>
+                                    <goal>jar</goal>
+                                </goals>
+                                <configuration>
+                                    <notimestamp>true</notimestamp>
+                                    <outputDirectory>${project.basedir}/docs/javadocs</outputDirectory>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
                     <plugin>
                         <groupId>org.codehaus.gmavenplus</groupId>
                         <artifactId>gmavenplus-plugin</artifactId>
@@ -200,6 +227,57 @@
                             </dependency>
                         </dependencies>
                     </plugin>
+                    <plugin>
+                        <artifactId>kotlin-maven-plugin</artifactId>
+                        <groupId>org.jetbrains.kotlin</groupId>
+                        <version>${kotlin.version}</version>
+                        <executions>
+                            <execution>
+                                <id>process-docs</id>
+                                <goals>
+                                    <goal>script</goal>
+                                </goals>
+                                <phase>
+                                    generate-sources
+                                </phase>
+                                <configuration>
+                                    <scriptFile>src/docs/kotlin/rocks/bastion/docs/CodeReplacement.kts</scriptFile>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.asciidoctor</groupId>
+                        <artifactId>asciidoctor-maven-plugin</artifactId>
+                        <version>1.5.3</version>
+                        <executions>
+                            <execution>
+                                <id>user-guide</id>
+                                <goals>
+                                    <goal>process-asciidoc</goal>
+                                </goals>
+                                <phase>generate-resources</phase>
+                            </execution>
+                        </executions>
+                        <configuration>
+                            <backend>html5</backend>
+                            <sourceHighlighter>coderay</sourceHighlighter>
+                            <sourceDirectory>${project.basedir}/target/generated-docs</sourceDirectory>
+                            <outputDirectory>${project.basedir}/docs/reference</outputDirectory>
+                            <embedAssets>true</embedAssets>
+                            <attributes>
+                                <imagesdir>src/docs/asciidoc/images</imagesdir>
+                                <icons>font</icons>
+                            </attributes>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
+            <id>release</id>
+            <build>
+                <plugins>
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-javadoc-plugin</artifactId>

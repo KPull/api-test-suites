@@ -1,6 +1,7 @@
 package rocks.bastion.core;
 
 import org.junit.Test;
+import rocks.bastion.core.view.Bindings;
 
 import java.io.ByteArrayInputStream;
 import java.util.Collections;
@@ -35,13 +36,14 @@ public class StatusCodeAssertionsTest {
     }
 
     @Test
-    public void init_emptyIntegersExpectation() throws Exception {
-        assertThatThrownBy(() -> StatusCodeAssertions.expecting(new Integer[0])).describedAs("Empty constructor").isInstanceOf(IllegalArgumentException.class);
+    public void init_emptyIterableExpectation() throws Exception {
+        assertThatThrownBy(() -> StatusCodeAssertions.expecting(Collections.emptyList())).describedAs("Empty constructor").isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
-    public void init_emptyIterableExpectation() throws Exception {
-        assertThatThrownBy(() -> StatusCodeAssertions.expecting(Collections.emptyList())).describedAs("Empty constructor").isInstanceOf(IllegalArgumentException.class);
+    public void initAndExecute_literalIntegersPassed_assertionCreatedCorrectly() throws Exception {
+        StatusCodeAssertions assertion = StatusCodeAssertions.expecting(401, 404);
+        assertion.execute(401, getResponseWithStatusCode(401), "Model");
     }
 
     private void testAssertion(int actual, int... expected) {
@@ -50,6 +52,9 @@ public class StatusCodeAssertionsTest {
     }
 
     private ModelResponse<String> getResponseWithStatusCode(int statusCode) {
-        return new ModelResponse<>(new RawResponse(statusCode, "Status Code", Collections.emptyList(), new ByteArrayInputStream(new byte[0])), "Model");
+        String data = "Model";
+        return new ModelResponse<>(new RawResponse(statusCode, "Status Code", Collections.emptyList(), new ByteArrayInputStream(new byte[0])),
+                                   data,
+                                   Bindings.single(String.class, data));
     }
 }

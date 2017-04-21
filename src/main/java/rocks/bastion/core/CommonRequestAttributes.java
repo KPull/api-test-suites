@@ -48,6 +48,7 @@ public class CommonRequestAttributes {
      * <li>Headers: Initialised to the empty collection of headers.</li>
      * <li>Query parameters: Initialised to the empty collection of query parameters.</li>
      * <li>Route parameters: Initialised to the empty collection of route parameters.</li>
+     * <li>Timeout: Falls back to globally configured timeout</li>
      * </ul>
      *
      * @param method The HTTP method to use for a request. Cannot be {@literal null}.
@@ -65,6 +66,7 @@ public class CommonRequestAttributes {
         headers = new LinkedList<>();
         queryParams = new LinkedList<>();
         routeParams = new LinkedList<>();
+        timeout = HttpRequest.USE_GLOBAL_TIMEOUT;
         setBody(body);
     }
 

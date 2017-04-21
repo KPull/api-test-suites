@@ -2,15 +2,12 @@ package rocks.bastion;
 
 import rocks.bastion.core.Assertions;
 import rocks.bastion.core.BastionFactory;
-import rocks.bastion.core.Callback;
 import rocks.bastion.core.HttpRequest;
 import rocks.bastion.core.builder.BastionBuilder;
 import rocks.bastion.core.builder.ExecuteRequestBuilder;
 import rocks.bastion.core.builder.PostExecutionBuilder;
-import rocks.bastion.core.configuration.BastionConfigurationLoader;
 import rocks.bastion.core.configuration.Configuration;
 import rocks.bastion.core.configuration.GlobalRequestAttributes;
-import rocks.bastion.core.json.JsonRequest;
 import rocks.bastion.core.resource.ResourceLoader;
 
 import static java.util.Objects.requireNonNull;
@@ -24,21 +21,19 @@ import static java.util.Objects.requireNonNull;
  * A test engineer would prepare requests and responses based on these specifications to test the overall process of calling these APIs.
  * </p>
  * <p>
- * Bastion also contains tools that will help developers fix problems that occur as fast as possible. The JUnit 4 test runner,
- * {@link rocks.bastion.junit.BastionRunner}, for example, allows each individual HTTP request to appear in any test reports or UIs.
- * This is extremely useful as a developer will more easily understand which API or HTTP request failed when testing multi-step
- * processes.
+ * Bastion also contains tools that will help developers fix problems that occur as fast as possible. When a test fails, the entire
+ * request and response content is logged. Also, when using the built-in assertions, helpful diff text is displayed related to the type
+ * of HTTP response you're expecting.
  * </p>
  * <h1>Creating a Bastion Test</h1>
  * <p>
- * Bastion is run as part of your standard testing framework. If you are using JUnit 4 or above, we recommend also using the
- * {@link rocks.bastion.junit.BastionRunner} test runner for additional diagnostic information when a test fails. For an
- * example of a Bastion test, see the <a href="https://bastion.rocks">Bastion User Guide</a>.
+ * Bastion is run as part of your standard testing framework. For an
+ * example of a Bastion test, see the <a href="http://bastion-dev.github.io/Bastion/reference/index.html">Bastion User Guide</a>.
  * </p>
  * <p>
  * Inside your test method or test case, make a call to the {@link Bastion#request(String, HttpRequest)} method. This will
  * return a <a href="https://en.wikipedia.org/wiki/Fluent_interface">fluent-builder style interface</a> that will allow you
- * to further specify the response model, assertions and callbacks on your test.
+ * to further specify the response model and assertions on your test.
  * </p>
  * <p>
  * The returned builder will allow you call any of the following methods:
@@ -48,14 +43,12 @@ import static java.util.Objects.requireNonNull;
  * interpret and decode the received response object into an instance of whatever type is supplied to this method.</li>
  * <li>{@link rocks.bastion.core.builder.AssertionsBuilder#withAssertions(Assertions)}: Specify what test assertions to apply to the response. We recommend supplying the
  * assertions as a lambda or using one of the available subclass implementations of {@link Assertions}.</li>
- * <li>{@link rocks.bastion.core.builder.CallbackBuilder#thenDo(Callback)}: Specify a callback function to execute when the response is received and it passes its assertions. We
- * recommend supplying the {@link Callback} as a lambda function.</li>
  * <li>{@link ExecuteRequestBuilder#call()}: Starts the Bastion test by executing the HTTP request.</li>
  * </ul>
  * <p>
  * You cannot call any of the methods above before any of the methods listed before it. Therefore, in your test, you should call
  * the methods above one after each other as listed above: you can skip any of the methods and Bastion will assign defaults.
- * For example, if you want to make an HTTP request, apply some assertions without binding a model or using a callback, you would
+ * For example, if you want to make an HTTP request and apply some assertions without binding a model, you would
  * call the {@link #request(String, HttpRequest)} method first, followed by the {@link rocks.bastion.core.builder.AssertionsBuilder#withAssertions(Assertions)}
  * method to configure your assertions, followed by the {@link ExecuteRequestBuilder#call()} method to send the request
  * and start the test.
@@ -63,24 +56,28 @@ import static java.util.Objects.requireNonNull;
  * <h1>Getting the Response</h1>
  * <p>
  * Once you execute the HTTP test using the {@link ExecuteRequestBuilder#call()} method, you can retrieve the HTTP response
- * and even any model object decoded by Bastion using the following methods:
+ * and any views decoded by Bastion using the following methods:
  * </p>
  * <ul>
  * <li>{@link PostExecutionBuilder#getResponse()}: Get the HTTP response object that was returned following the request
  * sent with the Bastion test. This will contain the status code, and HTTP headers and the body content. It will also
  * contain the model object decoded by Bastion.</li>
- * <li>{@link PostExecutionBuilder#getModel()}: Get the model object decoded by Bastion from the HTTP response. This is
- * a convenience method instead of calling {@code .getResponse().getModel()}.</li>
+ * <li>{@link PostExecutionBuilder#getModel()}: Get the model object decoded by Bastion from the HTTP response. You can specify the
+ * type of model object you expect using {@link rocks.bastion.core.builder.BindBuilder#bind(Class)}.</li>
+ * <li>{@link PostExecutionBuilder#getView(Class)}: Get alternative view objects (different than the model) of the response.</li>
  * </ul>
  * <p>
- * The model object is a plain Java object that was created after Bastion has decoded the content body. If you specified
- * a model type with the {@link rocks.bastion.core.builder.BindBuilder#bind(Class)} method, then the model object will be
- * of the type you specified. Otherwise, the type of model will be determined by Bastion depending on the content-type header
- * of the response. For example, if you did not use the {@link rocks.bastion.core.builder.BindBuilder#bind(Class)} method
- * and the response had content-type "application/json", then the model object will be of type {@link com.fasterxml.jackson.databind.JsonNode}.
+ * When Bastion receives a response, it will attempt to decode it into as many view objects as possible. A view is a Java object which
+ * represents the data received inside the response body. For example, if the response is a JSON string, then one of the views would be a
+ * {@link com.fasterxml.jackson.databind.JsonNode}.
  * </p>
- * <p>Obtaining the response in this way is useful especially if you want to perform another Bastion request after in the same
- * test. You can use the information retrieved in the model or response for the next Bastion request.</p>
+ * <p>
+ * The model object is a plain Java object that was created after Bastion has decoded the content body into views. If you specified
+ * a model type with the {@link rocks.bastion.core.builder.BindBuilder#bind(Class)} method, then the model object will be
+ * of the type you specified.
+ * </p>
+ * <p>Obtaining the response in these ways is useful especially if you want to perform another Bastion request after in the same
+ * test. You can use the information retrieved in the model, views or response for the next Bastion request.</p>
  * <h1>Request Types</h1>
  * <p>
  * There are multiple types of requests that you can send using Bastion. To start building a Bastion test, construct and initialise
@@ -90,6 +87,7 @@ import static java.util.Objects.requireNonNull;
  * <ul>
  * <li>{@link rocks.bastion.core.GeneralRequest}: Allows you to specify a string content-body. Can also be used if you wouldn't
  * like to send any content-body (such as for a {@code GET} request).</li>
+ * <li>{@link rocks.bastion.core.FileRequest}: Allows you to string content-body that is loaded from a file.</li>
  * <li>{@link rocks.bastion.core.FormUrlEncodedRequest}: Allows you to construct an HTTP request containing URL encoded form data in its
  * content-body.</li>
  * <li>{@link rocks.bastion.core.json.JsonRequest}: Allows you to specify a valid JSON string to send as part of your HTTP request
@@ -125,20 +123,13 @@ import static java.util.Objects.requireNonNull;
  * {@link rocks.bastion.core.builder.AssertionsBuilder#withAssertions(Assertions)} method of the Bastion test builder as
  * a Java 8 lambda.
  * </p>
- * <h1>Callbacks</h1>
+ * <h1>Global configuration</h1>
  * <p>
- * {@link Callback Callback objects} can be provided for a Bastion test using the {@link rocks.bastion.core.builder.CallbackBuilder#thenDo(Callback)}
- * method. Callbacks are executed right after the test passes its assertions. Using a callback you may perform additional
- * post processing to the response object which is not necessarily related to test assertions. This can include logging,
- * setting variables for use further in your test and so on.
- * </p>
- * <p>You are encouraged to define your own {@link Callback callback} implementations. Just like requests and assertions,
- * this promotes code reuse and maintainability especially if you are performing an action multiple times across your
- * Bastion tests.</p>
- * <p>
- * If you do not want to implement your own callback classes though you can supply a callback object directly into the
- * {@link rocks.bastion.core.builder.CallbackBuilder#thenDo(Callback)} method of the Bastion test builder as a Java 8
- * lambda.
+ * You can specify global attributes which apply to all future Bastion requests using the {@link Bastion#globals()} method. This allows
+ * you to add global {@link GlobalRequestAttributes#addQueryParam(String, String) query parameters},
+ * {@link GlobalRequestAttributes#addHeader(String, String) headers} and
+ * {@link GlobalRequestAttributes#addRouteParam(String, String) route parameters} to all requests you make using Bastion. You can also
+ * {@link GlobalRequestAttributes#setGlobalRequestTimeout(long) configure the timeout} which applies to requests.
  * </p>
  * <h1>Groovy Tests</h1>
  * <p>
@@ -151,7 +142,7 @@ import static java.util.Objects.requireNonNull;
  * Groovy is easy to set up for your project. After you have set up Groovy to run automated tests, simply add Bastion to
  * your project's dependencies (as explained above) and create your tests as normal. With Groovy, you can supply long strings
  * using alternate string delimiters including so-called multiline strings. These will improve the readability of your code
- * greatly when supplying strings to Bastion. See the <a href="https://bastion.rocks">Bastion User Guide</a>
+ * greatly when supplying strings to Bastion. See the <a href="http://bastion-dev.github.io/Bastion/reference/index.html">Bastion User Guide</a>
  * for an example of how a Bastion test would look like in Groovy.
  * </p>
  */
@@ -170,7 +161,7 @@ public final class Bastion {
      *
      * @param message A descriptive message for this Bastion test.
      * @param request The HTTP request that Bastion will execute for this test.
-     * @return A fluent-builder object which will let you bind a model type, add assertions, add callbacks and execute the test.
+     * @return A fluent-builder object which will let you bind a model type, add assertions and execute the test.
      */
     public static BastionBuilder<Object> request(String message, HttpRequest request) {
         return BastionFactory.getDefaultBastionFactory().getBastion(message, request);
@@ -187,7 +178,7 @@ public final class Bastion {
      * </p>
      *
      * @param request The HTTP request that Bastion will execute for this test.
-     * @return A fluent-builder object which will let you bind a model type, add assertions, add callbacks and execute the test.
+     * @return A fluent-builder object which will let you bind a model type, add assertions and execute the test.
      */
     public static BastionBuilder<Object> request(HttpRequest request) {
         return BastionFactory.getDefaultBastionFactory().getBastion("", request);

@@ -4,13 +4,9 @@ import com.google.common.base.Strings;
 import rocks.bastion.core.builder.*;
 import rocks.bastion.core.configuration.Configuration;
 import rocks.bastion.core.event.*;
-import rocks.bastion.core.model.DecodingHints;
-import rocks.bastion.core.model.ResponseDecoder;
-import rocks.bastion.core.model.ResponseDecodersRegistrar;
+import rocks.bastion.core.view.*;
 
-import java.util.Collection;
-import java.util.LinkedList;
-import java.util.Objects;
+import java.util.*;
 
 import static java.lang.String.format;
 
@@ -23,15 +19,16 @@ import static java.lang.String.format;
  */
 public class BastionBuilderImpl<MODEL> implements BastionBuilder<MODEL>, ResponseDecodersRegistrar, BastionEventPublisher, PostExecutionBuilder<MODEL> {
 
+    private State currentState;
     private String message;
     private Collection<BastionListener> bastionListenerCollection;
-    private Collection<ResponseDecoder> modelConverters;
+    private List<ResponseDecoder> modelConverters;
     private HttpRequest request;
     private Class<MODEL> modelType;
     private boolean suppressAssertions;
     private Assertions<? super MODEL> assertions;
-    private Callback<? super MODEL> callback;
     private MODEL model;
+    private Bindings bindings;
     private ModelResponse<MODEL> modelResponse;
     private Configuration configuration;
 
@@ -43,9 +40,11 @@ public class BastionBuilderImpl<MODEL> implements BastionBuilder<MODEL>, Respons
         this.message = message;
         this.request = request;
         modelType = null;
+        model = null;
+        bindings = new Bindings();
         suppressAssertions = false;
         assertions = Assertions.noAssertions();
-        callback = Callback.noCallback();
+        currentState = State.INITIALISED;
     }
 
     public void addBastionListener(BastionListener newListener) {
@@ -94,23 +93,25 @@ public class BastionBuilderImpl<MODEL> implements BastionBuilder<MODEL>, Respons
 
     @Override
     public PostExecutionBuilder<? extends MODEL> call() {
+        transitionToState(State.ASSERTIONS, State.EXECUTED);
         modelResponse = null;
+        Response response = null;
         try {
             notifyListenersCallStarted(new BastionStartedEvent(request));
-            Response response = new RequestExecutor(request, getConfiguration()).execute();
-            model = decodeModel(response);
-            modelResponse = new ModelResponse<>(response, model);
+            response = new RequestExecutor(request, getConfiguration()).execute();
+            bindings = decodeBindings(response);
+            model = extractModel();
+            modelResponse = new ModelResponse<>(response, model, bindings);
             executeAssertions(modelResponse);
-            executeCallback(modelResponse);
             return this;
-        } catch (AssertionError e) {
-            notifyListenersCallFailed(new BastionFailureEvent(request, modelResponse, e));
+        } catch (AssertionError error) {
+            notifyListenersCallFailed(new BastionFailureEvent(request, response, error));
             return this;
-        } catch (Throwable t) {
-            notifyListenersCallError(new BastionErrorEvent(request, modelResponse, t));
+        } catch (Throwable throwable) {
+            notifyListenersCallError(new BastionErrorEvent(request, response, throwable));
             return this;
         } finally {
-            notifyListenersCallFinished(new BastionFinishedEvent(request, modelResponse));
+            notifyListenersCallFinished(new BastionFinishedEvent(request, response));
         }
     }
 
@@ -118,22 +119,17 @@ public class BastionBuilderImpl<MODEL> implements BastionBuilder<MODEL>, Respons
     @SuppressWarnings("unchecked")
     public <T> AssertionsBuilder<? extends T> bind(Class<T> modelType) {
         Objects.requireNonNull(modelType);
+        transitionToState(State.INITIALISED, State.BOUND);
         BastionBuilderImpl<T> castedBuilder = (BastionBuilderImpl<T>) this;
         castedBuilder.modelType = modelType;
         return castedBuilder;
     }
 
     @Override
-    public CallbackBuilder<? extends MODEL> withAssertions(Assertions<? super MODEL> assertions) {
+    public ExecuteRequestBuilder<? extends MODEL> withAssertions(Assertions<? super MODEL> assertions) {
         Objects.requireNonNull(assertions);
+        transitionToState(State.BOUND, State.ASSERTIONS);
         this.assertions = assertions;
-        return this;
-    }
-
-    @Override
-    public ExecuteRequestBuilder<? extends MODEL> thenDo(Callback<? super MODEL> callback) {
-        Objects.requireNonNull(callback);
-        this.callback = callback;
         return this;
     }
 
@@ -148,9 +144,22 @@ public class BastionBuilderImpl<MODEL> implements BastionBuilder<MODEL>, Respons
     }
 
     @Override
+    public <T> Optional<T> getView(Class<T> viewType) {
+        return bindings.getViewForType(viewType);
+    }
+
+    @Override
     public void registerModelConverter(ResponseDecoder decoder) {
         Objects.requireNonNull(decoder);
         modelConverters.add(decoder);
+    }
+
+    public void setConfiguration(Configuration configuration) {
+        this.configuration = configuration;
+    }
+
+    public Configuration getConfiguration() {
+        return configuration;
     }
 
     private String getDescriptiveText() {
@@ -161,44 +170,58 @@ public class BastionBuilderImpl<MODEL> implements BastionBuilder<MODEL>, Respons
         }
     }
 
-    private void executeCallback(ModelResponse<MODEL> modelResponse) {
-        callback.execute(modelResponse.getStatusCode(), modelResponse, modelResponse.getModel());
-    }
-
     private void executeAssertions(ModelResponse<MODEL> modelResponse) {
         if (!suppressAssertions) {
             assertions.execute(modelResponse.getStatusCode(), modelResponse, modelResponse.getModel());
         }
     }
 
-    private MODEL decodeModel(Response response) {
-        DecodingHints decodingHints = new DecodingHints(modelType);
-        Object decodedResponseModel = null;
-        for (ResponseDecoder converter : modelConverters) {
-            decodedResponseModel = converter.decode(response, decodingHints).orElse(null);
-            if (decodedResponseModel != null) {
-                break;
-            }
+    private Bindings decodeBindings(Response response) {
+        ViewBinder binder = new ViewBinder(response, modelConverters);
+        return binder.bind(new DecodingHints(modelType));
+    }
+
+    private MODEL extractModel() {
+        if (modelType == null) {
+            // By default, if no bind was supplied, use the String representation of the response as the model
+            return (MODEL) bindings.getViewForType(String.class).orElse(null);
         }
-        MODEL model;
-        if (isModelInstanceOfRequiredType(decodedResponseModel)) {
-            //noinspection unchecked
-            model = (MODEL) decodedResponseModel;
-        } else {
-            throw new AssertionError(format("Could not parse response into model object of type %s", modelType.getName()));
-        }
-        return model;
+        return bindings.getViewForType(modelType).orElseThrow(() ->
+            new AssertionError(format("Could not parse response into model object of type %s", modelType.getName()))
+        );
     }
 
     private boolean isModelInstanceOfRequiredType(Object decodedResponseModel) {
         return (modelType == null) || ((decodedResponseModel != null) && modelType.isAssignableFrom(decodedResponseModel.getClass()));
     }
 
-    public void setConfiguration(Configuration configuration) {
-        this.configuration = configuration;
+    private void transitionToState(State from, State to) {
+        synchronized (this) {
+            if (currentState == to) {
+                throw new IllegalStateException(format("%s has been called twice in a row", to.getMethodName()));
+            }
+            if (currentState.ordinal() > from.ordinal()) {
+                throw new IllegalStateException(format("%s must be called before %s", to.getMethodName(), currentState.getMethodName()));
+            }
+            currentState = to;
+        }
     }
 
-    public Configuration getConfiguration() {
-        return configuration;
+    private enum State {
+        INITIALISED("request()"),
+        BOUND("bind()"),
+        ASSERTIONS("withAssertions()"),
+        EXECUTED("call()");
+
+        private final String methodName;
+
+        State(String methodName) {
+            Objects.requireNonNull(methodName);
+            this.methodName = methodName;
+        }
+
+        public String getMethodName() {
+            return methodName;
+        }
     }
 }
