@@ -1,5 +1,7 @@
 package rocks.bastion.support.embedded;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+
 import java.math.BigDecimal;
 
 /**
@@ -14,6 +16,7 @@ public class Sushi {
     private long id;
     private String name;
     private BigDecimal price;
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     private Type type;
 
     protected Sushi() {

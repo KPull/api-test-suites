@@ -55,7 +55,7 @@ public class JsonSchemaAssertionsTest {
             assertions.execute(201, response, response.getModel());
         } catch (AssertionError assertionError) {
             Assert.assertEquals("Assertion Failed Message",
-                                "Content-type MIME type expected:<[application/jso]n> but was:<[text/plai]n>",
+                                "[Content-type MIME type] expected:<\"[application/jso]n\"> but was:<\"[text/plai]n\">",
                                 assertionError.getMessage());
             return;
         }
