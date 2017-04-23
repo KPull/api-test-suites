@@ -9,7 +9,6 @@ import com.github.fge.jsonschema.core.report.ProcessingMessage;
 import com.github.fge.jsonschema.core.report.ProcessingReport;
 import com.github.fge.jsonschema.main.JsonSchemaFactory;
 import org.apache.http.entity.ContentType;
-import org.junit.Assert;
 import rocks.bastion.core.Assertions;
 import rocks.bastion.core.ModelResponse;
 import rocks.bastion.core.Response;
@@ -19,6 +18,8 @@ import java.io.IOException;
 import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Asserts that an API response conforms to a given JSON schema.
@@ -97,8 +98,9 @@ public final class JsonSchemaAssertions implements Assertions<Object> {
     }
 
     private void assertContentTypeHeader(Response response) {
-        Assert.assertTrue("Content-type exists in response", response.getContentType().isPresent());
-        Assert.assertEquals("Content-type MIME type", contentType.getMimeType(), response.getContentType().get().getMimeType());
+        assertThat(response.getContentType()).describedAs("Content-type").isNotEmpty();
+        assertThat(response.getContentType().get().getMimeType()).describedAs("Content-type MIME type")
+                                                                 .isEqualTo(contentType.getMimeType());
     }
 
 }

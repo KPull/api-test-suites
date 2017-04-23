@@ -1,8 +1,13 @@
 package rocks.bastion.support;
 
-import com.google.gson.Gson;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.http.entity.ContentType;
-import rocks.bastion.core.*;
+import rocks.bastion.core.ApiHeader;
+import rocks.bastion.core.ApiQueryParam;
+import rocks.bastion.core.HttpMethod;
+import rocks.bastion.core.HttpRequest;
+import rocks.bastion.core.RouteParam;
 import rocks.bastion.support.embedded.Sushi;
 
 import java.util.Collection;
@@ -48,7 +53,11 @@ public class CreateSushiRequest implements HttpRequest {
 
     @Override
     public Object body() {
-        return new Gson().toJson(Sushi.newSushi().name("happiness").build());
+        try {
+            return new ObjectMapper().writeValueAsString(Sushi.newSushi().name("happiness").build());
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
     }
 
 }

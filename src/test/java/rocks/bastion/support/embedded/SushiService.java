@@ -1,9 +1,13 @@
 package rocks.bastion.support.embedded;
 
-import com.google.gson.Gson;
-import com.google.gson.JsonParseException;
-import spark.*;
+import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import spark.ResponseTransformer;
+import spark.Route;
+import spark.Spark;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.Map;
@@ -146,15 +150,23 @@ public class SushiService {
      */
     private class JsonTransformer implements ResponseTransformer {
 
-        private Gson gson = new Gson();
+        private ObjectMapper objectMapper = new ObjectMapper();
 
         @Override
         public String render(Object model) {
-            return gson.toJson(model);
+            try {
+                return objectMapper.writeValueAsString(model);
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException(e);
+            }
         }
 
         public <T> T fromJson(String json, Class<T> type) {
-            return gson.fromJson(json, type);
+            try {
+                return objectMapper.readValue(json, type);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
         }
     }
 }
