@@ -17,7 +17,7 @@ import static java.lang.String.format;
 /**
  * An HTTP request which takes any arbitrary file/resource, using the data within as its content body. The {@linkplain FileRequest} will not perform
  * any conversions or validation on any user-supplied body content. Use the static factory methods, such as {@link #post(String, String)}
- * or {@link #delete(String, String)} to initialise a new {@linkplain FileRequest}.
+ * or {@link #patch(String, String)} to initialise a new {@linkplain FileRequest}.
  * <p>
  * By default, this request will contain no headers (except for the content-type) and no query parameters. Use the {@link #addHeader(String, String)}
  * and {@link #addQueryParam(String, String)}} to add them. Also, initially, Bastion will attempt to guess the MIME type to send as part of the
@@ -52,31 +52,6 @@ public class FileRequest implements HttpRequest {
      */
     public static FileRequest post(String url, String resource) throws UnreadableResourceException, ResourceNotFoundException {
         return new FileRequest(HttpMethod.POST, url, resource);
-    }
-
-    /**
-     * Construct an HTTP request, using the DELETE method, to be sent on the specified URL. The request's content will be loaded
-     * from the specified resource URL. Bastion will attempt to guess the MIME type to send by looking at the given file.
-     * <p>
-     * The resource source is specified as a resource URL as described in {@link ResourceLoader}. Valid resource URLs include (but
-     * are not limited to):
-     * </p>
-     * <ul>
-     * <li>{@code classpath:/rocks/bastion/json/Sushi.json}</li>
-     * <li>{@code file:/home/user/Sushi.json}</li>
-     * </ul>
-     * <p>
-     * For more information about which resource URLs are accepted see the documentation for {@link ResourceLoader}.
-     * </p>
-     *
-     * @param url      A non-{@literal null} URL to send the request on
-     * @param resource A non-{@literal null} resource URL to load the data from, for this request
-     * @return An HTTP request using the DELETE method
-     * @throws UnreadableResourceException Thrown if the specified resource exists but cannot be read (because it is a directory, for example)
-     * @throws ResourceNotFoundException   Thrown if the specified resource does not exist
-     */
-    public static FileRequest delete(String url, String resource) throws UnreadableResourceException, ResourceNotFoundException {
-        return new FileRequest(HttpMethod.DELETE, url, resource);
     }
 
     /**

@@ -46,9 +46,8 @@ public class RequestExecutor {
             Objects.requireNonNull(bastionHttpRequest);
             this.bastionHttpRequest = bastionHttpRequest;
             this.configuration = configuration;
-            uriBuilder = new URIBuilder();
+            uriBuilder = new URIBuilder(applyRouteParameters());
             applyQueryParameters();
-            applyRouteParameters();
             executableHttpRequest = prepareHttpRequest();
             applyHeaders();
             applyBody();
@@ -78,11 +77,10 @@ public class RequestExecutor {
         try {
             CloseableHttpResponse httpResponse = performRequest();
             return convertToRawResponse(httpResponse);
+        } catch (SocketTimeoutException exception) {
+            throw new AssertionError(String.format("Failed to receive response before timeout of [%s] ms",
+                                                   resolveTimeoutOrFallbackToGlobal(bastionHttpRequest, configuration)), exception);
         } catch (IOException exception) {
-            if (exception.getCause() instanceof SocketTimeoutException) {
-                throw new AssertionError(String.format("Failed to receive response before timeout of [%s] ms",
-                                                       resolveTimeoutOrFallbackToGlobal(bastionHttpRequest, configuration)));
-            }
             throw new IllegalStateException("Failed executing request", exception);
         }
     }
@@ -142,14 +140,14 @@ public class RequestExecutor {
         apiQueryParams.forEach(queryParam -> uriBuilder.addParameter(queryParam.getName(), queryParam.getValue()));
     }
 
-    private void applyRouteParameters() {
+    private String applyRouteParameters() {
         List<RouteParam> routeParams = new ArrayList<>(configuration.getGlobalRequestAttributes().getGlobalRouteParams());
         routeParams.addAll(bastionHttpRequest.routeParams());
         String urlWithPlaceholders = bastionHttpRequest.url();
         for (RouteParam routeParam : routeParams) {
             urlWithPlaceholders = urlWithPlaceholders.replaceAll("\\Q{" + routeParam.getName() + "}\\E", routeParam.getValue());
         }
-        uriBuilder.setPath(urlWithPlaceholders);
+        return urlWithPlaceholders;
     }
 
     private void applyBody() {
@@ -162,9 +160,8 @@ public class RequestExecutor {
     }
 
     private CloseableHttpResponse performRequest() throws IOException {
-        try (CloseableHttpClient httpClient = HttpClients.createDefault()) {
-            return httpClient.execute(executableHttpRequest);
-        }
+        CloseableHttpClient httpClient = HttpClients.createDefault();
+        return httpClient.execute(executableHttpRequest);
     }
 
     private Response convertToRawResponse(CloseableHttpResponse httpResponse) throws IOException {

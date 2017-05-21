@@ -27,14 +27,6 @@ public class FileRequestTest extends TestWithEmbeddedServer {
     }
 
     @Test
-    public void delete() throws Exception {
-        Bastion.request("Create Sushi", FileRequest.delete("http://localhost:9876/sushi", "classpath:/json/create_sushi_request.json"))
-                .bind(Sushi.class)
-                .withAssertions(JsonResponseAssertions.fromResource(201, "classpath:/json/create_sushi_response.json").ignoreValuesForProperties("/id"))
-                .call();
-    }
-
-    @Test
     public void patch() throws Exception {
         Bastion.request("Create Sushi", FileRequest.patch("http://localhost:9876/sushi", "classpath:/json/create_sushi_request.json"))
                 .bind(Sushi.class)
