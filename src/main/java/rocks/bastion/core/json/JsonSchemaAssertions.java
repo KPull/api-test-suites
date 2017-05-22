@@ -19,7 +19,7 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static java.lang.String.format;
 
 /**
  * Asserts that an API response conforms to a given JSON schema.
@@ -83,12 +83,14 @@ public final class JsonSchemaAssertions implements Assertions<Object> {
 
     private void assertResponseConformsToSchema(JsonNode response) throws ProcessingException, IOException {
         ProcessingReport validationReport = JsonSchemaFactory.byDefault()
-                .getJsonSchema(getExpectedSchema()).validate(response);
+                                                             .getJsonSchema(getExpectedSchema()).validate(response);
         if (!validationReport.isSuccess()) {
             String messages = StreamSupport.stream(validationReport.spliterator(), false)
-                    .map(ProcessingMessage::getMessage)
-                    .collect(Collectors.joining(", "));
-            throw new AssertionError(String.format("Actual response body is not as specified. The following message(s) where produced during validation; %s.", messages));
+                                           .map(ProcessingMessage::getMessage)
+                                           .collect(Collectors.joining(", "));
+            throw new AssertionError(format(
+                    "Actual response body is not as specified. The following message(s) where produced during validation; %s.",
+                    messages));
         }
     }
 
@@ -98,9 +100,12 @@ public final class JsonSchemaAssertions implements Assertions<Object> {
     }
 
     private void assertContentTypeHeader(Response response) {
-        assertThat(response.getContentType()).describedAs("Content-type").isNotEmpty();
-        assertThat(response.getContentType().get().getMimeType()).describedAs("Content-type MIME type")
-                                                                 .isEqualTo(contentType.getMimeType());
+        if (!response.getContentType().isPresent()) {
+            throw new AssertionError("Response content-type should not be missing.");
+        }
+        if (!response.getContentType().get().getMimeType().equals(contentType.getMimeType())) {
+            throw new AssertionError(format("Response content-type should be \"%s\" but got \"%s\" instead", contentType.getMimeType(),
+                                             response.getContentType().get().getMimeType()));
+        }
     }
-
 }
