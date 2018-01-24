@@ -1,20 +1,27 @@
 package rocks.bastion.core.json;
 
 import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.flipkart.zjsonpatch.JsonDiff;
-import com.google.gson.JsonParseException;
-import com.google.gson.JsonParser;
 import org.apache.http.entity.ContentType;
-import org.junit.Assert;
-import rocks.bastion.core.*;
+import rocks.bastion.core.Assertions;
+import rocks.bastion.core.ModelResponse;
+import rocks.bastion.core.Response;
+import rocks.bastion.core.TemplateCompilationException;
+import rocks.bastion.core.TemplateContentCompiler;
 import rocks.bastion.core.resource.ResourceLoader;
 import rocks.bastion.core.resource.ResourceNotFoundException;
 import rocks.bastion.core.resource.UnreadableResourceException;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Objects;
 
 import static java.lang.String.format;
 
@@ -90,6 +97,17 @@ public class JsonResponseAssertions implements Assertions<Object> {
      * <p>
      * The loaded JSON, after variables are resolved, must be syntactically correct; otherwise, an exception is
      * thrown to indicate that the expected JSON string is invalid.
+     * </p>
+     * <p>
+     *     <b>IMPORTANT:</b> Before you can use this method, the JMustache library <b>MUST BE</b> on your classpath. If you're using Maven,
+     *     you should add the following to your POM file:
+     *     <br><code>
+     *     &lt;dependency&gt; <br/>
+     *   &lt;groupId&gt;com.samskivert&lt;/groupId&gt; <br/>
+     *   &lt;artifactId&gt;jmustache&lt;/artifactId&gt; <br/>
+     *   &lt;version&gt;1.13&lt;/version&gt; <br/>
+     *   &lt;/dependency&gt;<br/>
+     *   </code>
      * </p>
      *
      * @param expectedStatusCode  The expected HTTP status code
@@ -200,7 +218,9 @@ public class JsonResponseAssertions implements Assertions<Object> {
     @Override
     public void execute(int statusCode, ModelResponse<?> response, Object model) throws AssertionError {
         try {
-            Assert.assertEquals("Response Status Code", expectedStatusCode, statusCode);
+            if (expectedStatusCode != statusCode) {
+                throw new AssertionError(format("Received status code <%d> is not as expected <%d>", statusCode, expectedStatusCode));
+            }
             assertContentTypeHeader(response);
             JsonNode jsonPatch = computeJsonPatch(response);
             assertJsonPatchIsEmpty(jsonPatch);
@@ -211,7 +231,7 @@ public class JsonResponseAssertions implements Assertions<Object> {
 
     private static void assertJsonPatchIsEmpty(JsonNode jsonPatch) {
         if (jsonPatch.size() != 0) {
-            Assert.fail(format("Actual response body is not as expected. The following JSON Patch (as per RFC-6902) tells you what operations you need " +
+            throw new AssertionError(format("Actual response body is not as expected. The following JSON Patch (as per RFC-6902) tells you what operations you need " +
                     "to perform to transform the actual response body into the expected response body:\n %s", jsonPatch.toString()));
         }
     }
@@ -235,15 +255,19 @@ public class JsonResponseAssertions implements Assertions<Object> {
 
     private void validateExpectedJson() throws InvalidJsonException {
         try {
-            new JsonParser().parse(expectedJson);
+            new ObjectMapper().getFactory().createParser(expectedJson).readValueAsTree();
         } catch (JsonParseException parseException) {
             throw new InvalidJsonException(parseException, expectedJson);
+        } catch (IOException ioException) {
+            throw new RuntimeException("Unexpected error occurred parsing JSON", ioException);
         }
     }
 
     private void assertContentTypeHeader(Response response) {
-        Assert.assertTrue("Content-type exists in response", response.getContentType().isPresent());
-        Assert.assertEquals("Content-type MIME type", contentType.getMimeType(), response.getContentType().get().getMimeType());
+        ContentType contentType = response.getContentType().orElseThrow(() -> new AssertionError("Content-type expected to be in response"));
+        if (!Objects.equals(contentType.getMimeType(), this.contentType.getMimeType())) {
+            throw new AssertionError(format("Expected content-type header <%s> to be as expected <%s>", contentType.getMimeType(), this.contentType.getMimeType()));
+        }
     }
 
     private JsonNode computeJsonPatch(Response response) throws IOException {

@@ -63,7 +63,7 @@ public class JsonResponseAssertionsTest {
         } catch (AssertionError assertionError) {
             Assert.assertEquals("Assertion Failed Message", assertionError.getMessage(), "Actual response body is not as expected. The following JSON Patch (as per RFC-6902) tells you what operations you need to perform to transform the actual response body into the expected response body:" +
                     "\n" +
-                    " [{\"op\":\"move\",\"path\":\"/array/2\",\"from\":\"/array/0\"}]");
+                    " [{\"op\":\"move\",\"from\":\"/array/0\",\"path\":\"/array/2\"}]");
             return;
         }
         Assert.fail("An assertion error should have been thrown by the JSON Response Assertions");
@@ -93,7 +93,7 @@ public class JsonResponseAssertionsTest {
         } catch (AssertionError assertionError) {
             Assert.assertEquals("Assertion Failed Message", assertionError.getMessage(), "Actual response body is not as expected. The following JSON Patch (as per RFC-6902) tells you what operations you need to perform to transform the actual response body into the expected response body:" +
                     "\n" +
-                    " [{\"op\":\"remove\",\"path\":\"/array/0\"},{\"op\":\"replace\",\"path\":\"/array/2\",\"value\":\"third\"}]");
+                    " [{\"op\":\"remove\",\"path\":\"/array/0\",\"value\":\"third\"},{\"op\":\"replace\",\"path\":\"/array/2\",\"value\":\"third\"}]");
             return;
         }
         Assert.fail("An assertion error should have been thrown by the JSON Response Assertions");
@@ -108,7 +108,7 @@ public class JsonResponseAssertionsTest {
         } catch (AssertionError assertionError) {
             Assert.assertEquals("Assertion Failed Message", assertionError.getMessage(), "Actual response body is not as expected. The following JSON Patch (as per RFC-6902) tells you what operations you need to perform to transform the actual response body into the expected response body:" +
                     "\n" +
-                    " [{\"op\":\"replace\",\"path\":\"/key\",\"value\":\"kyle\"},{\"op\":\"remove\",\"path\":\"/array\"}]");
+                    " [{\"op\":\"replace\",\"path\":\"/key\",\"value\":\"kyle\"},{\"op\":\"remove\",\"path\":\"/array\",\"value\":[1,2]}]");
             return;
         }
         Assert.fail("An assertion error should have been thrown by the JSON Response Assertions");
@@ -131,7 +131,7 @@ public class JsonResponseAssertionsTest {
             assertions.execute(200, response, response.getModel());
         } catch (AssertionError assertionError) {
             Assert.assertEquals("Assertion Failed Message", assertionError.getMessage(), "Actual response body is not as expected. The following JSON Patch (as per RFC-6902) tells you what operations you need to perform to transform the actual response body into the expected response body:\n" +
-                    " [{\"op\":\"move\",\"path\":\"/timestamp\",\"from\":\"/timestamp1\"},{\"op\":\"remove\",\"path\":\"/colours\"},{\"op\":\"remove\",\"path\":\"/favourites/country\"},{\"op\":\"add\",\"path\":\"/favourites/colours\",\"value\":[\"blue\",\"red\"]}]");
+                    " [{\"op\":\"move\",\"from\":\"/timestamp1\",\"path\":\"/timestamp\"},{\"op\":\"remove\",\"path\":\"/colours\",\"value\":[\"blue\"]},{\"op\":\"remove\",\"path\":\"/favourites/country\",\"value\":\"Spain\"},{\"op\":\"add\",\"path\":\"/favourites/colours\",\"value\":[\"blue\",\"red\"]}]");
             return;
         }
         Assert.fail("An assertion error should have been thrown by the JSON Response Assertions");
@@ -156,7 +156,8 @@ public class JsonResponseAssertionsTest {
             assertions.execute(200, response, response.getModel());
         } catch (AssertionError assertionError) {
             Assert.assertEquals("Assertion Failed Message", assertionError.getMessage(), "Actual response body is not as expected. The following JSON Patch (as per RFC-6902) tells you what operations you need to perform to transform the actual response body into the expected response body:\n" +
-                    " [{\"op\":\"move\",\"path\":\"/timestamp\",\"from\":\"/timestamp1\"},{\"op\":\"remove\",\"path\":\"/colours\"},{\"op\":\"remove\",\"path\":\"/favourites/country\"},{\"op\":\"add\",\"path\":\"/favourites/colours\",\"value\":[\"blue\",\"red\"]}]");
+                    " [{\"op\":\"move\",\"from\":\"/timestamp1\",\"path\":\"/timestamp\"},{\"op\":\"remove\",\"path\":\"/colours\",\"value\":[\"blue\"]}," +
+                    "{\"op\":\"remove\",\"path\":\"/favourites/country\",\"value\":\"Spain\"},{\"op\":\"add\",\"path\":\"/favourites/colours\",\"value\":[\"blue\",\"red\"]}]");
             return;
         }
         Assert.fail("An assertion error should have been thrown by the JSON Response Assertions");

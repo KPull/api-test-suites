@@ -1,21 +1,33 @@
 package rocks.bastion.core;
 
-import com.mashape.unirest.http.HttpResponse;
-import com.mashape.unirest.http.Unirest;
-import com.mashape.unirest.http.exceptions.UnirestException;
-import com.mashape.unirest.request.HttpRequestWithBody;
+import org.apache.http.HttpEntityEnclosingRequest;
+import org.apache.http.client.config.RequestConfig;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpDelete;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpHead;
+import org.apache.http.client.methods.HttpOptions;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.client.methods.HttpPut;
+import org.apache.http.client.methods.HttpRequestBase;
+import org.apache.http.client.methods.HttpUriRequest;
+import org.apache.http.client.utils.URIBuilder;
+import org.apache.http.entity.StringEntity;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
+import rocks.bastion.core.configuration.Configuration;
 
-import java.io.InputStream;
+import java.io.IOException;
 import java.net.SocketTimeoutException;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
-
-import rocks.bastion.core.configuration.Configuration;
 
 /**
  * Responsible for executing a Bastion remote request built using the {@link BastionBuilderImpl} builder and prepare a response object.
@@ -24,19 +36,24 @@ public class RequestExecutor {
 
     private Configuration configuration;
     private HttpRequest bastionHttpRequest;
-    private com.mashape.unirest.request.HttpRequest executableHttpRequest;
+    private HttpUriRequest executableHttpRequest;
     private Collection<ApiHeader> headers;
     private String resolvedUrl;
+    private URIBuilder uriBuilder;
 
     public RequestExecutor(HttpRequest bastionHttpRequest, Configuration configuration) {
-        Objects.requireNonNull(bastionHttpRequest);
-        this.bastionHttpRequest = bastionHttpRequest;
-        this.configuration = configuration;
-        executableHttpRequest = prepareHttpRequest();
-        applyHeaders();
-        applyQueryParameters();
-        applyRouteParameters();
-        applyBody();
+        try {
+            Objects.requireNonNull(bastionHttpRequest);
+            this.bastionHttpRequest = bastionHttpRequest;
+            this.configuration = configuration;
+            uriBuilder = new URIBuilder(applyRouteParameters());
+            applyQueryParameters();
+            executableHttpRequest = prepareHttpRequest();
+            applyHeaders();
+            applyBody();
+        } catch (URISyntaxException exception) {
+            throw new IllegalStateException("Could not compute URI", exception);
+        }
     }
 
     public String getMethod() {
@@ -58,47 +75,102 @@ public class RequestExecutor {
      */
     public Response execute() {
         try {
-            HttpResponse<InputStream> httpResponse = performRequest();
+            CloseableHttpResponse httpResponse = performRequest();
             return convertToRawResponse(httpResponse);
-        } catch (UnirestException exception) {
-            if (exception.getCause() instanceof SocketTimeoutException) {
-                throw new AssertionError(String.format("Failed to receive response before timeout of [%s] ms", resolveTimeoutOrFallbackToGlobal(bastionHttpRequest, configuration)));
-            }
+        } catch (SocketTimeoutException exception) {
+            throw new AssertionError(String.format("Failed to receive response before timeout of [%s] ms",
+                                                   resolveTimeoutOrFallbackToGlobal(bastionHttpRequest, configuration)), exception);
+        } catch (IOException exception) {
             throw new IllegalStateException("Failed executing request", exception);
         }
     }
 
-    private com.mashape.unirest.request.HttpRequest prepareHttpRequest() {
+    private HttpUriRequest prepareHttpRequest() throws URISyntaxException {
 
         long timeout = resolveTimeoutOrFallbackToGlobal(bastionHttpRequest, configuration);
-        Unirest.setTimeouts(timeout, timeout);
-        com.mashape.unirest.request.HttpRequest request;
+        HttpRequestBase request;
+        resolvedUrl = uriBuilder.build().toString();
         switch (bastionHttpRequest.method().getValue()) {
             case "GET":
-                request = Unirest.get(bastionHttpRequest.url());
+                request = new HttpGet(resolvedUrl);
                 break;
             case "POST":
-                request = Unirest.post(bastionHttpRequest.url());
+                request = new HttpPost(resolvedUrl);
                 break;
             case "PATCH":
-                request = Unirest.patch(bastionHttpRequest.url());
+                request = new HttpPost(resolvedUrl);
                 break;
             case "DELETE":
-                request = Unirest.delete(bastionHttpRequest.url());
+                request = new HttpDelete(resolvedUrl);
                 break;
             case "PUT":
-                request = Unirest.put(bastionHttpRequest.url());
+                request = new HttpPut(resolvedUrl);
                 break;
             case "OPTIONS":
-                request = Unirest.options(bastionHttpRequest.url());
+                request = new HttpOptions(resolvedUrl);
                 break;
             case "HEAD":
-                request = Unirest.head(bastionHttpRequest.url());
+                request = new HttpHead(resolvedUrl);
                 break;
             default:
-                throw new UnsupportedOperationException(String.format("We cannot perform a request of type %s.", bastionHttpRequest.method().getValue()));
+                throw new UnsupportedOperationException(String.format("We cannot perform a request of type %s.",
+                                                                      bastionHttpRequest.method().getValue()));
         }
+        request.setConfig(RequestConfig.custom()
+                                       .setConnectTimeout((int) timeout)
+                                       .setSocketTimeout((int) timeout)
+                                       .setConnectionRequestTimeout((int) timeout)
+                                       .build());
         return request;
+    }
+
+    private void applyHeaders() {
+        headers = new LinkedList<>(configuration.getGlobalRequestAttributes().getGlobalHeaders());
+        headers.addAll(bastionHttpRequest.headers());
+        if (headers.stream().noneMatch(header -> header.getName().equalsIgnoreCase("content-type")) && bastionHttpRequest.contentType()
+                                                                                                                         .isPresent()) {
+            headers.add(new ApiHeader("Content-Type", bastionHttpRequest.contentType().get().toString()));
+        }
+        headers.forEach(header -> executableHttpRequest.addHeader(header.getName(), header.getValue()));
+    }
+
+    private void applyQueryParameters() {
+        List<ApiQueryParam> apiQueryParams = new ArrayList<>(configuration.getGlobalRequestAttributes().getGlobalQueryParams());
+        apiQueryParams.addAll(bastionHttpRequest.queryParams());
+        apiQueryParams.forEach(queryParam -> uriBuilder.addParameter(queryParam.getName(), queryParam.getValue()));
+    }
+
+    private String applyRouteParameters() {
+        List<RouteParam> routeParams = new ArrayList<>(configuration.getGlobalRequestAttributes().getGlobalRouteParams());
+        routeParams.addAll(bastionHttpRequest.routeParams());
+        String urlWithPlaceholders = bastionHttpRequest.url();
+        for (RouteParam routeParam : routeParams) {
+            urlWithPlaceholders = urlWithPlaceholders.replaceAll("\\Q{" + routeParam.getName() + "}\\E", routeParam.getValue());
+        }
+        return urlWithPlaceholders;
+    }
+
+    private void applyBody() {
+        if (executableHttpRequest instanceof HttpEntityEnclosingRequest) {
+            ((HttpEntityEnclosingRequest) executableHttpRequest).setEntity(new StringEntity(
+                    bastionHttpRequest.body().toString(),
+                    bastionHttpRequest.contentType().orElse(null)
+            ));
+        }
+    }
+
+    private CloseableHttpResponse performRequest() throws IOException {
+        CloseableHttpClient httpClient = HttpClients.createDefault();
+        return httpClient.execute(executableHttpRequest);
+    }
+
+    private Response convertToRawResponse(CloseableHttpResponse httpResponse) throws IOException {
+        return new RawResponse(httpResponse.getStatusLine().getStatusCode(),
+                               httpResponse.getStatusLine().getReasonPhrase(),
+                               Arrays.stream(httpResponse.getAllHeaders())
+                                     .map(header -> new ApiHeader(header.getName(), header.getValue()))
+                                     .collect(Collectors.toList()),
+                               httpResponse.getEntity().getContent());
     }
 
     private static long resolveTimeoutOrFallbackToGlobal(HttpRequest request, Configuration configuration) {
@@ -107,47 +179,5 @@ public class RequestExecutor {
         } else {
             return request.timeout();
         }
-    }
-
-    private void applyHeaders() {
-        headers = new LinkedList<>(configuration.getGlobalRequestAttributes().getGlobalHeaders());
-        headers.addAll(bastionHttpRequest.headers());
-        if (headers.stream().noneMatch(header -> header.getName().equalsIgnoreCase("content-type")) && bastionHttpRequest.contentType().isPresent()) {
-            headers.add(new ApiHeader("Content-Type", bastionHttpRequest.contentType().get().toString()));
-        }
-        headers.forEach(header -> executableHttpRequest.header(header.getName(), header.getValue()));
-    }
-
-    private void applyQueryParameters() {
-        List<ApiQueryParam> apiQueryParams = new ArrayList<>(configuration.getGlobalRequestAttributes().getGlobalQueryParams());
-        apiQueryParams.addAll(bastionHttpRequest.queryParams());
-        apiQueryParams.forEach(queryParam -> executableHttpRequest.queryString(queryParam.getName(), queryParam.getValue()));
-        resolvedUrl = executableHttpRequest.getUrl();
-    }
-
-    private void applyRouteParameters() {
-        List<RouteParam> routeParams = new ArrayList<>(configuration.getGlobalRequestAttributes().getGlobalRouteParams());
-        routeParams.addAll(bastionHttpRequest.routeParams());
-        routeParams.forEach(routeParam -> executableHttpRequest.routeParam(routeParam.getName(), routeParam.getValue()));
-        resolvedUrl = executableHttpRequest.getUrl();
-    }
-
-    private void applyBody() {
-        if (executableHttpRequest instanceof HttpRequestWithBody) {
-            ((HttpRequestWithBody) executableHttpRequest).body(bastionHttpRequest.body().toString());
-        }
-    }
-
-    private HttpResponse<InputStream> performRequest() throws UnirestException {
-        return executableHttpRequest.asBinary();
-    }
-
-    private Response convertToRawResponse(HttpResponse<InputStream> httpResponse) {
-        return new RawResponse(httpResponse.getStatus(),
-                httpResponse.getStatusText(),
-                httpResponse.getHeaders().entrySet().stream().flatMap(header ->
-                        header.getValue().stream().map(headerValue ->
-                                new ApiHeader(header.getKey(), headerValue))).collect(Collectors.toList()),
-                httpResponse.getBody());
     }
 }

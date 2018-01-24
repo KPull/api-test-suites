@@ -1,8 +1,5 @@
 package rocks.bastion.support.embedded;
 
-import com.mashape.unirest.http.Unirest;
-import com.mashape.unirest.http.options.Option;
-import com.mashape.unirest.http.options.Options;
 import org.apache.http.HttpHost;
 import org.apache.http.client.HttpClient;
 import org.apache.http.config.RegistryBuilder;
@@ -32,13 +29,11 @@ public class TestWithProxiedEmbeddedServer extends TestWithEmbeddedServer {
         DefaultSchemePortResolver schemePortResolver = prepareSchemePortResolver();
         BasicHttpClientConnectionManager connManager = prepareConnectionManager(dnsResolver, schemePortResolver);
         HttpClient httpClient = prepareHttpClient(connManager);
-        originalHttpClient = (HttpClient) Options.getOption(Option.HTTPCLIENT);
-        Unirest.setHttpClient(httpClient);
     }
 
     @AfterClass
     public static void cleanupProxying() {
-        Unirest.setHttpClient(originalHttpClient);
+        // TODO
     }
 
     private static DefaultSchemePortResolver prepareSchemePortResolver() {
